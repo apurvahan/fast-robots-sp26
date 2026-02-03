@@ -1,7 +1,8 @@
 ---
 layout: page
-title: "Lab 1 Writeup"
+title: "Lab 1"
 permalink: /LAB-1/
+description: "Writeup for Lab 1."
 ---
 
 [← Back to Home]({{ '/' | relative_url }})
