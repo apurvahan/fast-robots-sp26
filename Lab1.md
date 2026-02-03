@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: default
 title: "Lab 1"
 permalink: /LAB-1/
 description: "Writeup for Lab 1."
