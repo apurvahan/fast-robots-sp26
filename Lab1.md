@@ -8,12 +8,33 @@ description: "Writeup for Lab 1."
 [← Back to Home]({{ '/' | relative_url }})
 
 ### Contents
-* [Hardware Setup](#hardware)
-* [Software Installation](#software)
-* [Final Demo](#demo)
+* [Prelab](#prelab)
+* [Lab Tasks](#software)
+* [Discussion](#demo)
 
 ---
 
+#prelab
+For the most part, I followed the instructions in Lab 1 exactly. In order to activate my virtual environment for this class however, I found that I had to use
+```bash
+    Set-ExecutionPolicy Unrestricted -Scope Process
+```
+in order to give it the permissions to run.
 
-# New page just dropped
-This is where your lab content goes!
+I already had both python and pip installed and added to pip so I just updated those and then installed the packages and Arduino libraries.  
+
+Arduino:
+Running the Arduino scripts involved:
+1. opening up the example code required (ex Blink)
+2. Connecting my board to it by choosing the right COM port (in my case COM6)
+3. Opening the serial monitor in Arduino
+4. Changing the baud rate in code to match up with my COM ports. Mine are on 9600 baud so I changed the example code to match that. Later on in the lab I changed the baud rate of my port instead.
+
+MAC Address:
+```bash
+    Advertising BLE with MAC: c0:81:f5:25:2a:64
+```
+
+
+
+
