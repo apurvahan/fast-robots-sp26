@@ -25,7 +25,7 @@ I already had both python and pip installed and added to pip so I just updated t
 
 Arduino:
 Running the Arduino scripts involved:
-1. opening up the example code required (ex Blink)
+1. Opening up the example code required (ex Blink)
 2. Connecting my board to it by choosing the right COM port (in my case COM6)
 3. Opening the serial monitor in Arduino
 4. Changing the baud rate in code to match up with my COM ports. Mine are on 9600 baud so I changed the example code to match that. Later on in the lab I changed the baud rate of my port instead.
