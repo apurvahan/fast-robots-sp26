@@ -24,7 +24,7 @@ in order to give it the permissions to run.
 I already had both python and pip installed and added to pip so I just updated those and then installed the packages and Arduino libraries.  
 
 Blink
-![blink GIF](blink.gif)
+![blink GIF](Images/blink.gif)
 
 
 Arduino:
