@@ -7,14 +7,14 @@ description: "Writeup for Lab 1."
 
 [← Back to Home]({{ '/' | relative_url }})
 
-### Contents
+## Contents
 * [Prelab](#prelab)
 * [Lab Tasks](#labtasks)
 * [Discussion](#discussion)
 
 ---
 
-# prelab
+## prelab
 
 Blink
 ![Blinking LED](../Images/blink.gif)
@@ -28,11 +28,10 @@ Analog Read
 Microphone Output
 ![Microphone Output](../Images/mic_example.png)
 
-Arduino:
+#### Arduino:
 My Arduino IDE was already setup so I just had to download the packages specific for this board. For the example code I changed the baud rate to match up with the preexisting baud rate of my COM ports (9600). 
 
-
-Lab 1B:
+### Lab 1B:
 To setup the Bluetooth connection, I installed the ArduinoBLE library, opened up ble_arduino from the unzipped files, and burned the code. The MAC address was then printed to the serial monitor and I updated connection.yaml with the MAC address and the generated UUID. 
 
 For the most part, I followed the instructions in Lab 1 exactly. In order to activate my virtual environment for this class however, I found that I had to use
@@ -58,7 +57,7 @@ characteristics:
   RX_STRING: 'f235a225-6735-4d73-94cb-ee5dfce9ba83'
 ```
 
-Codebase
+### Codebase
 The Artemis board receives commands as strings with a TX characteristic (transmit). Through switch-case logic, it takes in a command specified through that transmission and triggers some behavior (returns time stamps, echos, etc.) These commands can be parsed using methods from RobotCommand and EString. 
 
 UIUDs are universally unique identifiers and they're important for differentiating the different data types sent and received. There are different UIUDs for different characteristics, in this case TX strings, RX floats, RX strings. 
@@ -68,7 +67,144 @@ When data is sent from the the Artemis (via the arduino code) to the computer (v
 These characteristics determine the type of data received by the computer. These notifications allow Python to asynchronously receive the data packets and then store them into Python lists to then analyze on the computer. It's asynchronous because the computer receives data only when it is written rather than at some set time interval. 
 
 
-Lab Tasks 
+## Lab Tasks 
 
+### ECHO
+Command for sending a string value from the computer to the Artemis board:
 
+```python
+ble.send_command(CMD.ECHO, "HiHello")
+s = ble.receive_string(ble.uuid['RX_STRING'])
+print(s)
+```
 
+```C++
+case ECHO:
+    char char_arr[MAX_MSG_SIZE];
+    success = robot_cmd.get_next_value(char_arr);
+    if (!success)
+        return;
+
+    tx_estring_value.clear();
+    tx_estring_value.append("Robot says: ");
+    tx_estring_value.append(char_arr);
+    tx_estring_value.append(" :)");
+    tx_characteristic_string.writeValue(tx_estring_value.c_str());
+        break;
+```
+
+### Notifications
+
+```python
+times = []
+temps = []
+
+def notification_handler(uuid, data):
+    msg = data.decode()
+    print("RX:", msg)
+
+    if msg.startswith("T:") and "Temp" not in msg:
+        times.append(int(msg.split(":")[1]))
+
+    elif "Temp" in msg:
+        t_part, temp_part = msg.split(",")
+        times.append(int(t_part.split(":")[1]))
+        temps.append(float(temp_part.split(":")[1]))
+```
+### GET_TIME_MILLS
+
+```python
+ble.send_command(CMD.GET_TIME_MILLS, "")
+time.sleep(2)  
+print("sending time data")
+```
+
+```C++
+case GET_TIME_MILLS: {
+    int start = millis();
+    int packet_no = 1;
+    while (millis() - start < 3000) {  // stream for 3 seconds
+        if (time_index < MAX_SAMPLES) {
+            time_arr[time_index] = millis();
+            temp_arr[time_index] = getTempDegC();  // Apollo3 function
+            time_index++;
+        } else {
+            time_arr[MAX_SAMPLES];
+            temp_arr[MAX_SAMPLES];
+            time_index = 0;
+        }
+        tx_estring_value.clear();
+        tx_estring_value.append("T");
+        tx_estring_value.append(packet_no);
+        packet_no++;
+        tx_estring_value.append(": ");
+        tx_estring_value.append((int)millis());
+        tx_characteristic_string.writeValue(tx_estring_value.c_str());                  
+    }
+    break;
+}           
+```
+
+```bash
+RX: T1: 127105
+RX: T2: 127106
+RX: T3: 127106
+RX: T4: 127106
+RX: T5: 127167
+RX: T6: 127230
+RX: T7: 127230
+RX: T8: 127287
+RX: T9: 127287
+RX: T10: 127288
+...
+RX: T45: 128126
+RX: T46: 128188
+RX: T47: 128188
+RX: T48: 128242
+RX: T49: 128249
+RX: T50: 128250
+```
+
+### SEND_TIME_DATA
+```python
+ble.send_command(CMD.SEND_TIME_DATA, 0)
+time.sleep(2)
+```
+
+```C++
+case SEND_TIME_DATA: 
+    for (int i = 0; i < time_index; i++) {
+        tx_estring_value.clear();
+        tx_estring_value.append("T:");
+        tx_estring_value.append((int)time_arr[i]);
+        tx_characteristic_string.writeValue(tx_estring_value.c_str());
+        delay(1);  // avoid BLE overflow
+    }
+    break;
+```
+
+Time Array
+![Time Array](../Images/time_arr.png)
+
+### GET_TEMP_READINGS
+```python
+ble.send_command(CMD.GET_TEMP_READINGS, 0)
+time.sleep(2)
+```
+
+```C++
+case GET_TEMP_READINGS:
+    for (int i = 0; i < time_index; i++) {
+        tx_estring_value.clear();
+        tx_estring_value.append("T:");
+        tx_estring_value.append((int)time_arr[i]);
+        tx_estring_value.append(",Temp:");
+        tx_estring_value.append((int)temp_arr[i]);
+        tx_characteristic_string.writeValue(tx_estring_value.c_str());
+        delay(1);
+    }
+    break;
+```
+
+Temp and Time Array
+![Time and Temp Array](../Images/temp_arr.png)
