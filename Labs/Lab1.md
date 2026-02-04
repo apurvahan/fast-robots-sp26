@@ -270,5 +270,5 @@ The Artemis has 384 kB of RAM. Each time value is a string with "T:" and the num
 
 ------------------------------------------
 
-
+I learned about how notifications work between the Artemis and the computer and the benefits of different methods of storing and transmitting data. 
 
