@@ -14,7 +14,7 @@ description: "Writeup for Lab 1."
 
 ---
 
-#prelab
+# prelab
 For the most part, I followed the instructions in Lab 1 exactly. In order to activate my virtual environment for this class however, I found that I had to use
 ```bash
     Set-ExecutionPolicy Unrestricted -Scope Process
@@ -22,6 +22,10 @@ For the most part, I followed the instructions in Lab 1 exactly. In order to act
 in order to give it the permissions to run.
 
 I already had both python and pip installed and added to pip so I just updated those and then installed the packages and Arduino libraries.  
+
+Blink
+![blink GIF](blink.gif)
+
 
 Arduino:
 Running the Arduino scripts involved:
