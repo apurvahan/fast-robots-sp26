@@ -17,15 +17,19 @@ description: "Writeup for Lab 1."
 ## prelab
 
 #### Blink
+
 ![Blinking LED](../Images/blink.gif)
 
 #### Serial
+
 ![Serial Monitor](../Images/serial_example.png)
 
 #### Analog Read
+
 ![Analog Read Temperature](../Images/temp_example.png)
 
 #### Microphone Output
+
 ![Microphone Output](../Images/mic_example.png)
 
 #### Arduino:
