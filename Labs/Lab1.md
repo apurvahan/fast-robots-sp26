@@ -260,3 +260,15 @@ Temp and Time Array
 
 ## Discussion
 
+Streaming the data is simpler and allows you to receive the timestamps and data in real time. Since it writes the data to the computer immediately, there is less memory required on the Artemis. However, because it is constantly sending data it is limited by the bluetooth BLE bandwidth. The messages are faster than the process of transmitting them over to the computer. This causes multiple notifications to be sent at the same "time" for the Artemis. In the time stamps I put above, you can see the duplicates that result from this. As a result, it can be hard to tell exactly when something was sent over because it's based on the speed of transmission and on other factors like the buffer. 
+
+The second approach requires more code but because it is storing the data into arrays and then transmitting it over, the BLE bandwidth is not a limiting factor. The data can be sampled at even intervals. However, the main disadvantage here is that this data is being stored on the Artemis, causing increased memory usage and other potential issues with managing the amount of data that can be stored at once. 
+
+If I wanted to sample a lot of data very slowly I would use the first option because the transmission speed wouldn't be an issue and I wouldn't have to worry about memory space. If I wanted to sample data quickly and I care about the timing being accurate, I would use the second option. An example for this is sensor data where I would want accurate timestamps and quickly sampled data. 
+
+The Artemis has 384 kB of RAM. Each time value is a string with "T:" and the number of seconds. A string allocates 1 byte per character plus a character for \0. The times on average are a number with 6 digits so each string takes up 9 bytes. That means that we can store 42,666 data entries. Realistically though, some of that is taken up by variables so maybe 30,000 data entries might be a reasonable guess. 
+
+------------------------------------------
+
+
+
