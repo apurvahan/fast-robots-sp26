@@ -26,6 +26,8 @@ I already had both python and pip installed and added to pip so I just updated t
 Blink
 ![blink GIF](Images/blink.gif)
 
+<img src="Images/blink.gif" alt="Blinking LED" width="480" />
+
 
 Arduino:
 Running the Arduino scripts involved:
