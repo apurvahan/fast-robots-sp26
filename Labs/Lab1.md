@@ -16,16 +16,16 @@ description: "Writeup for Lab 1."
 
 ## prelab
 
-Blink
+#### Blink
 ![Blinking LED](../Images/blink.gif)
 
-Serial
+#### Serial
 ![Serial Monitor](../Images/serial_example.png)
 
-Analog Read
+#### Analog Read
 ![Analog Read Temperature](../Images/temp_example.png)
 
-Microphone Output
+#### Microphone Output
 ![Microphone Output](../Images/mic_example.png)
 
 #### Arduino:
@@ -67,7 +67,7 @@ When data is sent from the the Artemis (via the arduino code) to the computer (v
 These characteristics determine the type of data received by the computer. These notifications allow Python to asynchronously receive the data packets and then store them into Python lists to then analyze on the computer. It's asynchronous because the computer receives data only when it is written rather than at some set time interval. 
 
 
-## Lab Tasks 
+## labtasks 
 
 ### ECHO
 Takes in a string from the computer and returns it with some appended text.
@@ -258,7 +258,7 @@ Temp and Time Array
 ![Time and Temp Array](../Images/temp_arr.png)
 
 
-## Discussion
+## discussion
 
 Streaming the data is simpler and allows you to receive the timestamps and data in real time. Since it writes the data to the computer immediately, there is less memory required on the Artemis. However, because it is constantly sending data it is limited by the bluetooth BLE bandwidth. The messages are faster than the process of transmitting them over to the computer. This causes multiple notifications to be sent at the same "time" for the Artemis. In the time stamps I put above, you can see the duplicates that result from this. As a result, it can be hard to tell exactly when something was sent over because it's based on the speed of transmission and on other factors like the buffer. 
 
