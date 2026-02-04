@@ -71,7 +71,7 @@ When data is sent from the the Artemis (via the arduino code) to the computer (v
 These characteristics determine the type of data received by the computer. These notifications allow Python to asynchronously receive the data packets and then store them into Python lists to then analyze on the computer. It's asynchronous because the computer receives data only when it is written rather than at some set time interval. 
 
 
-## Lab 
+## lab 
 
 ### ECHO
 Takes in a string from the computer and returns it with some appended text.
