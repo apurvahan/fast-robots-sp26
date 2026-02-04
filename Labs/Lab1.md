@@ -70,7 +70,7 @@ These characteristics determine the type of data received by the computer. These
 ## Lab Tasks 
 
 ### ECHO
-Command for sending a string value from the computer to the Artemis board:
+Takes in a string from the computer and returns it with some appended text.
 
 ```python
 ble.send_command(CMD.ECHO, "HiHello")
@@ -93,7 +93,48 @@ case ECHO:
         break;
 ```
 
+### SEND_THREE_FLOATS
+Takes in three floats, parses them by splitting them on the '|' character and then prints them out to the serial monitor.
+
+```python
+ble.send_command(CMD.SEND_THREE_FLOATS, "4.5|-6|3")
+f = ble.receive_float(ble.uuid['RX_FLOAT'])
+print(f)
+```
+
+```C++
+case SEND_THREE_FLOATS:
+    /*
+    * Your code goes here.
+             
+     */
+    float fl_a, fl_b, fl_c;
+    success = robot_cmd.get_next_value(fl_a);
+    if (!success)
+        return;
+            
+    success = robot_cmd.get_next_value(fl_b);
+    if (!success)
+        return;
+
+    success = robot_cmd.get_next_value(fl_c);
+    if (!success)
+        return;
+
+    Serial.print("Three Floats: ");
+    Serial.print(fl_a);
+    Serial.print(", ");
+    Serial.print(fl_b);
+    Serial.print(", ");
+    Serial.println(fl_c);
+    break;
+```
+
+Serial Monitor Output
+![Three Float Output](../Images/three_floats.png)
+
 ### Notifications
+Determines behavior when a message is received. If the string received has "Temp" in it, it will split the string value into the temperature and time part and then add them to their respective python lists. If the string received doesn't have "Temp" in it, it only has time data and adds that to the python time list. 
 
 ```python
 times = []
@@ -112,6 +153,9 @@ def notification_handler(uuid, data):
         temps.append(float(temp_part.split(":")[1]))
 ```
 ### GET_TIME_MILLS
+Gets the current time and send it to the computer as a string (by writing it) continuously for 3 seconds. The computer then prints out the time values in the terminal. 
+
+We also add those times as well as temperatures at that time to an array. If we exceed the size of the array it clears the array and restarts collection. This part is relevant for the next section.
 
 ```python
 ble.send_command(CMD.GET_TIME_MILLS, "")
@@ -166,6 +210,8 @@ RX: T50: 128250
 ```
 
 ### SEND_TIME_DATA
+Loops through the time array (from the previous section) and writes those values to the computer. The notification handler then parses the received string and adds them to a python list which is then printed to the terminal. 
+
 ```python
 ble.send_command(CMD.SEND_TIME_DATA, 0)
 time.sleep(2)
@@ -178,7 +224,7 @@ case SEND_TIME_DATA:
         tx_estring_value.append("T:");
         tx_estring_value.append((int)time_arr[i]);
         tx_characteristic_string.writeValue(tx_estring_value.c_str());
-        delay(1);  // avoid BLE overflow
+        delay(1);  
     }
     break;
 ```
@@ -187,6 +233,8 @@ Time Array
 ![Time Array](../Images/time_arr.png)
 
 ### GET_TEMP_READINGS
+Loops through the time and temperature arrays (from the previous section) and writes those values to the computer. The notification handler then parses the received string and adds them to their respective python lists which is then printed to the terminal. 
+
 ```python
 ble.send_command(CMD.GET_TEMP_READINGS, 0)
 time.sleep(2)
@@ -208,3 +256,7 @@ case GET_TEMP_READINGS:
 
 Temp and Time Array
 ![Time and Temp Array](../Images/temp_arr.png)
+
+
+## Discussion
+
