@@ -9,8 +9,8 @@ description: "Writeup for Lab 1."
 
 ### Contents
 * [Prelab](#prelab)
-* [Lab Tasks](#software)
-* [Discussion](#demo)
+* [Lab Tasks](#labtasks)
+* [Discussion](#discussion)
 
 ---
 
