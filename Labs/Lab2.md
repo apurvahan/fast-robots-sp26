@@ -1,3 +1,10 @@
+---
+layout: default
+title: "Lab 2"
+permalink: /LAB-2/
+description: "Writeup for Lab 2."
+---
+
 <script>
 window.MathJax = {
   tex: {
@@ -13,13 +20,6 @@ window.MathJax = {
 $$
 \theta_g = \theta_g + \text{gyro\_reading} \times dt
 $$
-
----
-layout: default
-title: "Lab 2"
-permalink: /LAB-2/
-description: "Writeup for Lab 2."
----
 
 [← Back to Home]({{ '/' | relative_url }})
 
