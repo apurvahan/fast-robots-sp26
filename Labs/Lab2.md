@@ -184,15 +184,15 @@ For phi
     plt.show()
 ```
 
-![alt text](...\Images\FFT_accel_data.png)
+![alt text](..\Images\FFT_accel_data.png)
 
-![alt text](...\Images\FFT_angles.png)
+![alt text](..\Images\FFT_angles.png)
 
 If table vibration is introduced:
 
-![alt text](...\Images\table_vibration_data.png)
+![alt text](..\Images\table_vibration_data.png)
 
-![alt text](...\Images\table_vibration_FFT.png)
+![alt text](..\Images\table_vibration_FFT.png)
 
 #### Low Pass Filtering
 
@@ -200,7 +200,7 @@ Based on this data, it looks like a good cutoff frequency would be around 10-12 
 
 With a cutoff frequency of 10 Hz, the comparison between the angle data before and after filtering is shown below. The low pass filtered data has less excessive spikes than the raw data which is exactly the behavior expected. There is probably a low pass filter built into the board because I don't see excessively high frequencies meaning a lot of the electrical noise is probably already filtered out. When I tried vibrating the table by lightly tapping near the IMU, the FFT didn't have giant spikes near the higher frequencies which indicates to me that it's been filtered out already. 
 
-![alt text](...\Images\filtered_vs_raw.png)
+![alt text](..\Images\filtered_vs_raw.png)
 
 The forumlas for a low pass filter are \theta_{\text{LPF}}[n] = \alpha \cdot \theta_{\text{RAW}} + (1-\alpha) \cdot \theta_{\text{LPF}}[n-1] \\
 \theta_{\text{LPF}}[n-1] = \theta_{\text{LPF}}[n]
@@ -247,10 +247,10 @@ In addition, because gyroscopes calculate angle by integrating over small time s
 This can be seen in the data readings from the gyroscope:
 
 Raw Readings:
-![alt text](...\Images\raw_gyroscope_data.png)
+![alt text](..\Images\raw_gyroscope_data.png)
 
 The drift can be clearly seen here. The IMU was stationary during this data recording but the angles changes over time in particular directions. 
-![alt text](...\Images\gyroscope_angle_data.png)
+![alt text](..\Images\gyroscope_angle_data.png)
 
 
 In order to combine the gyroscope and accelerometer data I used a complementary filter to combine the streams of data. The formula is:
@@ -302,10 +302,10 @@ Code:
 
 Comparison Plots - For both roll and pitch, combining the data smooths out the values so that they're the same magnitude as the accelerometer data but not as noisy. 
 Roll:
-![alt text](...\Images\roll_comparison.png)
+![alt text](..\Images\roll_comparison.png)
 
 Pitch:
-![alt text](...\Images\pitch_comparison.png)
+![alt text](..\Images\pitch_comparison.png)
 
 
 ## sampledata
