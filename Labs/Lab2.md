@@ -15,12 +15,6 @@ window.MathJax = {
 </script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
-# Complementary Filter Notes
-
-$$
-\theta_g = \theta_g + \text{gyro\_reading} \times dt
-$$
-
 [← Back to Home]({{ '/' | relative_url }})
 
 ## Contents
@@ -55,6 +49,7 @@ We're using the [ICM-20948](https://cdn.sparkfun.com/assets/7/f/e/c/d/DS-000189-
 The accelerometer measures linear acceleration in m/s^2. It measures all acceleration felt in the environment (because it's based on a spring force balance) including gravity. If the accelerometer is held parallel to the ground, the acceleration value read would equal 9.81 m/s^2 (acceleration due to gravity). When tilted, the acceleration due to gravity is decomposed into the directions of the body axis of the accelerometer. Based on the values recorded in each axis we can determine the angle at which they've been rotated by. However, because accelerometer values are based on gravity, we cannot determine the rotation in yaw because the accelerometer still experiences the same acceleration in the z-direction as it remains parallel to the ground. 
 
 For example,
+
 $$
 \a_z = g*\cos\ {\theta}
 $$
