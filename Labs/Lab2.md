@@ -354,6 +354,6 @@ Video of Car
 ![alt text](..\Images\car_trick.MOV)
 
 <video controls width="100%">
-    <source src="car_trick.MOV" type="video/mp4">
+    <source src="car_trick.MOV" type="video/mov">
     Your browser does not support the video tag.
 </video>
