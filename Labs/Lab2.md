@@ -352,3 +352,8 @@ Collected gyrZ: [1.251, 1.519, -0.87, -0.183, -1.206, -2.885, -1.404, 0.412, -1.
 
 Video of Car
 ![alt text](..\Images\car_trick.MOV)
+
+<video controls width="100%">
+    <source src="car_trick.MOV" type="video/mp4">
+    Your browser does not support the video tag.
+</video>
