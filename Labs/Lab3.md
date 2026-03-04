@@ -1,8 +1,8 @@
 ---
 layout: default
-title: "Lab 2"
-permalink: /LAB-2/
-description: "Writeup for Lab 2."
+title: "Lab 3"
+permalink: /LAB-3/
+description: "Writeup for Lab 3."
 ---
 
 <script>
@@ -67,3 +67,6 @@ for (byte address = 1; address < 127; address++) {
 The IMUs have 3 distance modes: short, medium, and long. The long range mode allows a ranging distance of 4m but is more sensitive to ambient light and/or other light related error because of how much of the environment it is taking in. The short range mode has a smaller distance of 1.3m but is less light sensitive because it doesn't have to range in a large area. For this lab and also generally for the robot I think short range is enough because 1.3 meters is quite a lot relative to the size of the robot. 
 
 ![Wiring Diagram](../Images/distance_table_TOF.png)
+
+![TOF Wiring](../Images/wiring_TOF.jpg)
+
