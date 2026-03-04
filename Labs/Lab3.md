@@ -21,8 +21,6 @@ window.MathJax = {
 * [Prelab Tasks](#prelab)
 * [Lab Tasks](#labtasks)
 * [IMU](#imu)
-* [Sample Data](#sampledata)
-* [Stunt](#stunt)
 
 ---
 
@@ -40,7 +38,7 @@ There should be sensors at the front and the sides to prevent any sort of collis
 
 
 ## labtasks
-![Serial Monitor of Time of Fight Sensors](.../Images/serial_monitor_TOF.png)
+![Serial Monitor of Time of Fight Sensors](../Images/serial_monitor_TOF.png)
 
 This is my serial monitor after having 2 TOF sensors and 1 IMU plugged in. 
 
@@ -78,7 +76,7 @@ This is the sensor data for 0.1 meters.
 ## Testing the range of the sensor
 I taped the motor to a vertical box surface and then marked 0.1m increment lines on tape. Obstacles were placed at set distances to determine how accurate the data sensing was and I also tested in different ambient conditions to determine the effect that light would have on the sensor. 
 
-It seems like one of the sensors is consistently more off than the other and i wonder if that has to do with it being positioned physically taller than the other/if I positioned it slightly crooked. The sensor that did record data fairly well (the target was 0.8m away) seemed to do it best in very well lit conditions (room light was on and I had my phone light on over the obstacle). This is counterintuitive to what I'd expect from the reading about the IMU light sensitivity especially because 0.8 is close to the middle of the range that short distance mode sensors record in so I would expect it to be accurate around then and I would expect it to work better in darker settings. 
+It seems like one of the sensors is consistently more off than the other and i wonder if that has to do with it being positioned physically taller than the other/if I positioned it slightly crooked. The sensor that did record data fairly well (the target was 0.8m away) seemed to do it best in very well lit conditions (room light was on and I had my phone light on over the obstacle). This is counterintuitive to what I'd expect from the reading about the IMU light sensitivity. Especially because 0.8 is close to the middle of the range that short distance mode sensors record in I would expect it to be accurate and I would expect it to work better in darker areas. 
 
 ![Distance Data for 0.8 m DARK](../Images/Distance_Data_0.8/dark.png)
 
