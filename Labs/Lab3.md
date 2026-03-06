@@ -33,7 +33,7 @@ So, in order to use the two sensors, one of them has to be assigned a different 
 ### Sensor Placement
 There should be sensors at the front and the sides to prevent any sort of collisions to the front half of the car. We don't need TOF sensors in the back because we know where the car is if we know the orientation and the distance of the front to some obstacle. Since there are 2 TOF sensors, the best approach would be to put each one on the front left and front right, respectively, angled at around 45 degrees. This allows sensor fusion for obstacle detection of objects immediately in front of the robot because both sensors can see it while also allowing the robot to see on both sides. 
 
-###Wiring Diagram
+### Wiring Diagram
 ![Wiring Diagram](../Images/lab3_pinout.png)
 
 

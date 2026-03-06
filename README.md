@@ -10,3 +10,5 @@ Hi, I'm Apurva. I'm a junior mechanical engineer and I'm very excited to take th
 
 
 <a href="{{ '/LAB-3/' | relative_url }}" class="btn">View Lab 3 Writeup</a>
+
+<a href="{{ '/LAB-4/' | relative_url }}" class="btn">View Lab 4 Writeup</a>
