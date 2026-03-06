@@ -144,3 +144,34 @@ void loop() {
 
 ## Wiring Picture
 
+Robot wiring:
+![straight line](../Images/Lab4/robot_wiring.jpg)
+
+
+
+## Open Loop Control
+
+![straight line](../Images/Lab4/open_loop_control.gif) 
+
+```C++
+void loop() {
+  if (millis() - start_time > 2000) {
+    analogWrite(14, 0);
+    delay(20);
+    analogWrite(15, 0);
+    analogWrite(2, 0);
+    analogWrite(3, 0);
+  } else {
+    analogWrite(14, 200);
+    analogWrite(2, 200);
+    delay(100);
+    analogWrite(2, 100);
+    delay(100);
+    analogWrite(2, 0);
+    analogWrite(14, 0);
+    delay(100);
+    analogWrite(14, 220);
+    delay(100);
+    analogWrite(2, 220);
+  }
+```
