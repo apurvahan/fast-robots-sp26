@@ -58,7 +58,7 @@ if (abs(u) < 80 && abs(u) > 0)
 
 This forces the car to at least drive above 85 for fine adjustment. 
 
-The only issue with the current setup is that Kp causes overshoot which contributes heavily to my oscillation problem. To mitigate this I added some derivative control. I don't see the need for integral control at least at this point because integral control is quite prone to overshoot (wind-up issues) so it would just worsen my problems. Integral control is good for mitigating steady state error and maintaining position under constant disturbances. However, this system doesn't have a lot of disturbances so once it gets to 304 mm away from the wall, it's going to stay there because I'm driving on flat ground and no one is pushing it. 
+The only issue with the current setup is that Kp causes overshoot which contributes heavily to my oscillation problem. To mitigate this I added some derivative control. I don't see the need for integral control at least at this point because integral control is quite prone to overshoot (wind-up issues) so it would just worsen my problems. Integral control is good for mitigating steady state error and maintaining position under constant disturbances. However, this system doesn't have a lot of disturbances so once it gets to 304 mm away from the wall, it's going to stay there because I'm driving on flat ground and no one is pushing it. Derivative control is useful here because it will mitigate overshoot at the cost of potentially some steady state error. 
 
 I started with a small amount of Kd (0.02) and then adjusted it based off of how my car performed. 
 
