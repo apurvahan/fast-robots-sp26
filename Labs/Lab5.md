@@ -19,12 +19,11 @@ window.MathJax = {
 
 ## Contents
 * [Prelab Tasks](#prelab)
-* [Lab Tasks](#labtasks)
 * [Timing](#timing)
 
 ---
 
-#prelab 
+## prelab 
 
 ### Debugging
 
@@ -204,7 +203,7 @@ plt.show()
 time.sleep(10)  
 ```
 
-#timing
+## timing
 
 ### Frequency Discussion
 
