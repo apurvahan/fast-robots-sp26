@@ -20,18 +20,18 @@ window.MathJax = {
 ## Contents
 * [Prelab Tasks](#prelab)
 * [Lab Tasks](#labtasks)
-* [IMU](#imu)
+* [Timing](#timing)
 
 ---
 
-## prelab 
+#prelab 
 
 ### Debugging
 
-The plan is to have the robot run for some set amount of time and shut off after that time has passed (in this case 5 seconds). I implemented three new commands over BLE: hard stop, get data, and pid tuning. Triggering either a hard stop or timing out the loop will stop the motors and then send over the sensor and timing data as well as the PID tuning parameters which have been stored on the Artemis as the robot ran.
+The plan is to have the robot run for some set amount of time and shut off after that time has passed (in this case 5 seconds). I implemented three new commands over BLE: hard stop, get data, and pid tuning. Triggering either a hard stop or timing out the loop will stop the motors and then send over the sensor and timing data as well as the PID tuning parameters which have been stored on the Artemis as the robot ran. All BLE commands are sent before and after the PID loop runs the motors to prevent delays from that. All Serial print messages were removed at the end to mitigate delays from that. 
 
 
-## labtasks
+#labtasks
 
 ### Position Control 
 
@@ -49,18 +49,16 @@ distanceSensor.setTimingBudgetInMs(20)
 
 to 20Hz. This means that the data update rate is much faster so the sensor is more responsive which is ideal at high speeds. At lower data update speeds the car can travel quite a lot between each reading so it causes oscillation as the car has to adapt to the latest data after it's already moved a lot. The tradeoff on this is noisier data but we're making the car stop at a relatively far enough point from the wall (304 mm) that losing accuracy by a few millimeters is preferrable over jerky car movement. I'm using the long distance mode because I wanted to make sure it had the ability to detect the wall if I placed it far away and my general logic for this lab is to trade off accuracy for more data, regardless of quality. 
 
-When I tested closer to the wall I ended up in the deadband of the motor because my error was smaller so my commanded speed was smaller. My car's deadband is around 80. So, at the bottom of my PWM calculation code I added deadband compensation to account for it:
+When I tested closer to the wall I ended up in the deadband of the motor because my error was smaller so my commanded speed was smaller. My car's deadband is around 25 (at least on the surface I'm working on). So, at the bottom of my PWM calculation code I added deadband compensation to account for it. This means that even if the u value calculated is below the threshhold the motors will spin at at least a PWM of 25. The problem is that there is a difference between the static deadband and the dynamic deadband, where the car does spin at 25 PWM provided it has inertia but cannot spin at 25 PWM if it's starting from rest. Increasing the deadband limit will allow it to spin from rest but causes more oscillation because the car is going faster than what the PID control expects it to so it has to do a lot of compensation back and forth. I had to mess around with the deadband to ultimately find a compromise between the two effects.
 
 ```C++
-if (abs(u) < 80 && abs(u) > 0)
-    u = 85 * sign(u);
+if (abs(u) < 25 && abs(u) > 0)
+    u = 25 * sign(u);
 ```
-
-This forces the car to at least drive above 85 for fine adjustment. 
 
 The only issue with the current setup is that Kp causes overshoot which contributes heavily to my oscillation problem. To mitigate this I added some derivative control. I don't see the need for integral control at least at this point because integral control is quite prone to overshoot (wind-up issues) so it would just worsen my problems. Integral control is good for mitigating steady state error and maintaining position under constant disturbances. However, this system doesn't have a lot of disturbances so once it gets to 304 mm away from the wall, it's going to stay there because I'm driving on flat ground and no one is pushing it. Derivative control is useful here because it will mitigate overshoot at the cost of potentially some steady state error. 
 
-I started with a small amount of Kd (0.02) and then adjusted it based off of how my car performed. 
+I started with a small amount of Kd (0.02) and then adjusted it based off of how my car performed. Increasing my Kd value means the larger my velocity (my slope on the position-time graph) the larger the derivative control factor makes the control. In that sense, increasing Kd substantially is helpful for getting the car to be more responsive during slower speeds (starting from rest) but contributes to oscillation about the reference distance by increasing the speed of the car when the car is already fairly fast. 
 
 Tragically my motor driver is burnt out so I have no pictures/videos at the moment. I will replace it during lab and update in the evening. 
 
@@ -190,7 +188,7 @@ time.sleep(5)
 #ble.stop_notify(ble.uuid['RX_STRING'])
 ble.send_command(CMD.PID, "")
 print("executed PID control")
-time.sleep(10);
+time.sleep(10)
 ble.send_command(CMD.GET_TOF, "")
 print("got time of flight data")
     
@@ -205,3 +203,175 @@ plt.show()
 
 time.sleep(10)  
 ```
+
+#timing
+
+### Frequency Discussion
+
+Currently, the rate of my TOF loop and my sensor are explicitly coupled. In my TOF logic loop I only write PWM values to motor if new data is available on my sensor. I rewrote the function to first reference the last distance measurement the sensor took if the TOF doesn't have new data available. I don't think this is a particularly robust method for a fast, dynamic system because the change in position is so rapid between each loop that the distance won't be accurate and the PID control is either going to be substantially above or below what it needs to be.
+
+```C++
+void handlePID() {
+  PID_loop_time[PID_index] = millis();
+  PID_index++;
+  Serial.println("Starting PID");
+  prev_time = millis();
+  integral = 0;
+  prev_distance = 0;
+  prev_error = 0;
+  unsigned long startTime = millis();
+  while (millis() - startTime < 10000) {
+
+    if (distanceSensor.checkForDataReady()) {
+      float distance = distanceSensor.getDistance();
+      //Serial.print("distance: ");
+      //Serial.println(distance);
+      prev_distance = distance;
+      distanceSensor.clearInterrupt();  
+      float u = computePID(distance);
+      
+      if (u > 255) u = 250;
+      if (u < -255) u = -250;
+      if (u > 0) {
+        Serial.print("u: ");
+        Serial.println(u);
+        analogWrite(LM_F, u);
+        analogWrite(RM_F, u);
+        analogWrite(LM_B, 0);
+        analogWrite(RM_B, 0);
+      } else {
+        analogWrite(LM_F, 0);
+        analogWrite(RM_F, 0);
+        analogWrite(LM_B, -u);
+        analogWrite(RM_B, -u);
+      }
+      if (log_index < MAX_SAMPLES) {
+        dist_log[log_index] = distance;
+        time_log[log_index] = millis() - startTime;
+        u_log[log_index] = u;
+        log_index++;
+      }
+    } else {
+      //new data not ready yet - recalculate gains based on the previous estimate
+      distanceSensor.clearInterrupt();  
+      float u = computePID(prev_distance);
+      
+      if (u > 255) u = 250;
+      if (u < -255) u = -250;
+      if (u > 0) {
+        Serial.print("u: ");
+        Serial.println(u);
+        analogWrite(LM_F, u);
+        analogWrite(RM_F, u);
+        analogWrite(LM_B, 0);
+        analogWrite(RM_B, 0);
+      } else {
+        analogWrite(LM_F, 0);
+        analogWrite(RM_F, 0);
+        analogWrite(LM_B, -u);
+        analogWrite(RM_B, -u);
+      }
+      if (log_index < MAX_SAMPLES) {
+        dist_log[log_index] = prev_distance;
+        time_log[log_index] = millis() - startTime;
+        u_log[log_index] = u;
+        log_index++;
+      }
+    }
+  }
+  analogWrite(LM_F, 0);
+  analogWrite(LM_B, 0);
+  analogWrite(RM_F, 0);
+  analogWrite(RM_B, 0);
+  stop();
+  Serial.println("PID finished");
+}
+```
+
+Instead, it makes more sense to get a rough idea of how fast the car is moving by taking the delta of the position over the last two timestamps and then using that to extrapolate the position at the current time. I can then use that extrapolated posiion to calcuate the PID gains. The benefit of this is that this would in theory reduce the jerkiness of the car because I'm more continuously calculating the PID values by doing it between sensor readings.
+
+```C++
+void handlePID() {
+  Serial.println("Starting PID");
+  prev_time = millis();
+  integral = 0;
+  prev_distance = distanceSensor.getDistance();
+  prev_error = 0;
+  delta_distance = 0;
+  delta_time = 0;
+  unsigned long startTime = millis();
+  while (millis() - startTime < 10000) {
+
+    if (distanceSensor.checkForDataReady()) {
+      float distance = distanceSensor.getDistance();
+      //Serial.print("distance: ");
+      //Serial.println(distance);
+      delta_distance = distance - prev_distance;
+      delta_time = millis() - prev_time;
+      prev_distance = distance;
+      distanceSensor.clearInterrupt();  
+      float u = computePID(distance);
+      PID_loop_time[PID_index] = millis();
+      PID_index++;
+      if (u > 255) u = 250;
+      if (u < -255) u = -250;
+      if (u > 0) {
+        Serial.print("u: ");
+        Serial.println(u);
+        analogWrite(LM_F, u);
+        analogWrite(RM_F, u);
+        analogWrite(LM_B, 0);
+        analogWrite(RM_B, 0);
+      } else {
+        analogWrite(LM_F, 0);
+        analogWrite(RM_F, 0);
+        analogWrite(LM_B, -u);
+        analogWrite(RM_B, -u);
+      }
+      if (log_index < MAX_SAMPLES) {
+        dist_log[log_index] = distance;
+        time_log[log_index] = millis() - startTime;
+        u_log[log_index] = u;
+        log_index++;
+      }
+    } else {
+      distanceSensor.clearInterrupt();  
+      float u = computePID(prev_distance+(delta_distance/delta_time));
+      prev_distance = prev_distance + (delta_distance/delta_time);
+      if (u > 255) u = 250;
+      if (u < -255) u = -250;
+      if (u > 0) {
+        Serial.print("u: ");
+        Serial.println(u);
+        analogWrite(LM_F, u);
+        analogWrite(RM_F, u);
+        analogWrite(LM_B, 0);
+        analogWrite(RM_B, 0);
+      } else {
+        analogWrite(LM_F, 0);
+        analogWrite(RM_F, 0);
+        analogWrite(LM_B, -u);
+        analogWrite(RM_B, -u);
+      }
+      if (log_index < MAX_SAMPLES) {
+        dist_log[log_index] = prev_distance;
+        time_log[log_index] = millis() - startTime;
+        u_log[log_index] = u;
+        log_index++;
+      }
+    }
+  }
+  analogWrite(LM_F, 0);
+  analogWrite(LM_B, 0);
+  analogWrite(RM_F, 0);
+  analogWrite(RM_B, 0);
+  stop();
+  Serial.println("PID finished");
+}
+```
+
+### Timing Comparison
+
+I store time in two places: every time the loop method is called (which is also every time a PWM value is written to the motors) and every time a new PID value is calculated. The difference in the time steps is going to be based on how often it get the PID control values off of extrapolated data. 
+
+//insert values here
