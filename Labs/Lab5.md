@@ -379,12 +379,12 @@ I store time in two places: every time the loop method is called (which is also 
 
 ### Videos
 
-[![Video Thumbnail](https://youtube.com/shorts/rKKTZ1t4_Kw/0.jpg)](https://youtube.com/shorts/rKKTZ1t4_Kw)
+[![This video shows only proportional control. While the robot stops with basically no overshoot or oscillation, the main issue is that the speed of the motors goes completely to zero which is a problem because when I put an obstacle closer to the car (my hand) the car cannot move because it's running into the static friction limit](https://youtube.com/shorts/rKKTZ1t4_Kw/0.jpg)](https://youtube.com/shorts/rKKTZ1t4_Kw)
 
-[![Video Thumbnail](https://youtube.com/shorts/5k1u74cRGpQ/0.jpg)](https://youtube.com/shorts/5k1u74cRGpQ)
+[![Here, the car is slowed down significantly because the proportional gain values are way too small and the derivative control values are added so it's resulting in jerky motions where the speed of the car is slow because the u value is slow and it's approaching the static friction value. The oscillation around the steady state is very visible because the car has to fight so hard to move forward. The benefit of this oscillation is that the car never reaches 0 speed so when I move an obstacle in front of it, it does move backward because it has enough kinetic energy to do so. ](https://youtube.com/shorts/5k1u74cRGpQ/0.jpg)](https://youtube.com/shorts/5k1u74cRGpQ)
 
-[![Video Thumbnail](https://youtube.com/shorts/Pu0Ulfwqc50/0.jpg)](https://youtube.com/shorts/Pu0Ulfwqc50)
+[![This is with proportional and derivative control but with more proportional control than before. The u values are larger so the car's movements are smoother. However, the oscillation issue persists and it oscillates with more frequency because the speed of the car is faster. It oscillates around the final value quite a bit but all in all that isn't a terrible result if the car then has to react to another distance value. ](https://youtube.com/shorts/Pu0Ulfwqc50/0.jpg)](https://youtube.com/shorts/Pu0Ulfwqc50)
 
-[![Video Thumbnail](https://youtube.com/shorts/VWSNXvpO1Yw/0.jpg)](https://youtube.com/shorts/VWSNXvpO1Yw)
+[![I think this one was my best one so far because I found that making both Kp and Kd less aggressive helped me decrease the overshoot. I also had to decrease the min value speed a little so it could slow down more near the target because I think that was partially responsible for the aggressive oscillation from last time. The car is able to respond to the target moving closer to it by driving backward and the slight oscillation helps it do so by never allowing the car speed to drop to 0.](https://youtube.com/shorts/VWSNXvpO1Yw/0.jpg)](https://youtube.com/shorts/VWSNXvpO1Yw)
 
-[![Video Thumbnail](https://youtube.com/shorts/fcaHzP2P7-Y/0.jpg)](https://youtube.com/shorts/fcaHzP2P7-Y)
+[![Similar to the last video with identical parameters except with moving the target backward so the car has to drive forward. ](https://youtube.com/shorts/fcaHzP2P7-Y/0.jpg)](https://youtube.com/shorts/fcaHzP2P7-Y)
