@@ -146,7 +146,7 @@ void stop() {
 }
 ```
 
-#### Code for sending over data logs over Blueooth
+#### Code for sending over data logs over Bluetooth
 ```C++
 void getData() {
   for (int i = 0; i < log_index; i++) {
@@ -163,7 +163,7 @@ void getData() {
 ```
 
 
-#### Python commands
+#### Python commands: sending three floats is actually sending 4 floats in order: Kp, Ki, Kd, min_speed
 ```python
 time_vals = []
 dist_vals = []
