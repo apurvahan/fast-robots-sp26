@@ -178,20 +178,33 @@ def notification_handler(uuid, data):
     print("RX:", msg)
 
     
-
     
 time.sleep(0.2)
 ble.start_notify(ble.uuid['RX_STRING'], notification_handler)
+
+time_vals.clear()
+dist_vals.clear()
+u_vals.clear()
+
+    
 ble.send_command(CMD.HARD_STOP, "")
 print("executed hard stop")
 time.sleep(5)
+ble.send_command(CMD.SEND_THREE_FLOATS, "0.01|0|0.04|40") #pid 
+time.sleep(2)
 #ble.stop_notify(ble.uuid['RX_STRING'])
 ble.send_command(CMD.PID, "")
 print("executed PID control")
 time.sleep(10)
 ble.send_command(CMD.GET_TOF, "")
 print("got time of flight data")
-    
+
+time.sleep(10)
+ble.stop_notify(ble.uuid['RX_STRING'])
+
+print(time_vals)
+print(dist_vals)
+print(u_vals)
 
 plt.figure()
 plt.plot(time_vals, dist_vals)
@@ -199,7 +212,6 @@ plt.xlabel("Time (ms)")
 plt.ylabel("Distance (mm)")
 plt.title("PID Position Control")
 plt.show()
-
 
 time.sleep(10)  
 ```
