@@ -48,11 +48,11 @@ distanceSensor.setTimingBudgetInMs(20)
 
 to 20Hz. This means that the data update rate is much faster so the sensor is more responsive which is ideal at high speeds. At lower data update speeds the car can travel quite a lot between each reading so it causes oscillation as the car has to adapt to the latest data after it's already moved a lot. The tradeoff on this is noisier data but we're making the car stop at a relatively far enough point from the wall (304 mm) that losing accuracy by a few millimeters is preferrable over jerky car movement. I'm using the long distance mode because I wanted to make sure it had the ability to detect the wall if I placed it far away and my general logic for this lab is to trade off accuracy for more data, regardless of quality. 
 
-When I tested closer to the wall I ended up in the deadband of the motor because my error was smaller so my commanded speed was smaller. My car's deadband is around 25 (at least on the surface I'm working on). So, at the bottom of my PWM calculation code I added deadband compensation to account for it. This means that even if the u value calculated is below the threshhold the motors will spin at at least a PWM of 25. The problem is that there is a difference between the static deadband and the dynamic deadband, where the car does spin at 25 PWM provided it has inertia but cannot spin at 25 PWM if it's starting from rest. Increasing the deadband limit will allow it to spin from rest but causes more oscillation because the car is going faster than what the PID control expects it to so it has to do a lot of compensation back and forth. I had to mess around with the deadband to ultimately find a compromise between the two effects.
+When I tested closer to the wall I ended up in the deadband of the motor because my error was smaller so my commanded speed was smaller. My car's deadband is around 40 (at least on the surface I'm working on). So, at the bottom of my PWM calculation code I added deadband compensation to account for it. This means that even if the u value calculated is below the threshhold the motors will spin at at least a PWM of 40. The problem is that there is a difference between the static deadband and the dynamic deadband, where the car does spin at 40 PWM provided it has inertia but cannot spin at 40 PWM if it's starting from rest. Increasing the deadband limit will allow it to spin from rest but causes more oscillation because the car is going faster than what the PID control expects it to so it has to do a lot of compensation back and forth. I had to mess around with the deadband to ultimately find a compromise between the two effects.
 
 ```C++
-if (abs(u) < 25 && abs(u) > 0)
-    u = 25 * sign(u);
+if (abs(u) < 40 && abs(u) > 0)
+    u = 40 * sign(u);
 ```
 
 The only issue with the current setup is that Kp causes overshoot which contributes heavily to my oscillation problem. To mitigate this I added some derivative control. I don't see the need for integral control at least at this point because integral control is quite prone to overshoot (wind-up issues) so it would just worsen my problems. Integral control is good for mitigating steady state error and maintaining position under constant disturbances. However, this system doesn't have a lot of disturbances so once it gets to 304 mm away from the wall, it's going to stay there because I'm driving on flat ground and no one is pushing it. Derivative control is useful here because it will mitigate overshoot at the cost of potentially some steady state error. 
@@ -374,3 +374,17 @@ void handlePID() {
 I store time in two places: every time the loop method is called (which is also every time a PWM value is written to the motors) and every time a new PID value is calculated. The difference in the time steps is going to be based on how often it get the PID control values off of extrapolated data. 
 
 //insert values here
+
+
+
+### Videos
+
+[![Video Thumbnail](https://youtube.com/shorts/rKKTZ1t4_Kw/0.jpg)](https://youtube.com/shorts/rKKTZ1t4_Kw)
+
+[![Video Thumbnail](https://youtube.com/shorts/5k1u74cRGpQ/0.jpg)](https://youtube.com/shorts/5k1u74cRGpQ)
+
+[![Video Thumbnail](https://youtube.com/shorts/Pu0Ulfwqc50/0.jpg)](https://youtube.com/shorts/Pu0Ulfwqc50)
+
+[![Video Thumbnail](https://youtube.com/shorts/VWSNXvpO1Yw/0.jpg)](https://youtube.com/shorts/VWSNXvpO1Yw)
+
+[![Video Thumbnail](https://youtube.com/shorts/fcaHzP2P7-Y/0.jpg)](https://youtube.com/shorts/fcaHzP2P7-Y)
