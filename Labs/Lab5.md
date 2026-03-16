@@ -371,9 +371,88 @@ void handlePID() {
 
 ### Timing Comparison
 
-I store time in two places: every time the loop method is called (which is also every time a PWM value is written to the motors) and every time a new PID value is calculated. The difference in the time steps is going to be based on how often it get the PID control values off of extrapolated data. 
+I store time in two places: every time the loop method is called (which is also every time a PWM value is written to the motors) and every time a new PID value is calculated. The difference in the time steps is going to be based on how often it get the PID control values off of extrapolated data. The time deltas between each PWM cycle is on average 10.122 ms while the time deltas between each time the PWM cycle runs with new TOF data is 109.11 ms. So that means on average the PWM cycle runs 10 times faster when doing interpolation because previously it would have to wait 10 times as long for new values from the sensor. Given how fast the car is it definitely makes sense to use interpolation because it reduces response lag from the car. 
 
-//insert values here
+```C++
+void handlePID() {
+  Serial.println("Starting PID");
+  prev_time = millis();
+  integral = 0;
+  prev_distance = distanceSensor.getDistance();
+  prev_error = 0;
+  delta_distance = 0;
+  delta_time = 0;
+  unsigned long startTime = millis();
+  while (millis() - startTime < 10000) {
+
+    if (distanceSensor.checkForDataReady()) {
+      float distance = distanceSensor.getDistance();
+      //Serial.print("distance: ");
+      //Serial.println(distance);
+      delta_distance = distance - prev_distance;
+      delta_time = millis() - prev_time;
+      prev_distance = distance;
+      distanceSensor.clearInterrupt();  
+      Serial.print(millis());
+      float u = computePID(distance);
+      PID_loop_time[PID_index] = millis();
+      PID_index++;
+      if (u > 255) u = 250;
+      if (u < -255) u = -250;
+      if (u > 0) {
+        Serial.print("u: ");
+        Serial.println(u);
+        analogWrite(LM_F, u);
+        analogWrite(RM_F, u);
+        analogWrite(LM_B, 0);
+        analogWrite(RM_B, 0);
+      } else {
+        analogWrite(LM_F, 0);
+        analogWrite(RM_F, 0);
+        analogWrite(LM_B, -u);
+        analogWrite(RM_B, -u);
+      }
+      if (log_index < MAX_SAMPLES) {
+        dist_log[log_index] = distance;
+        time_log[log_index] = millis() - startTime;
+        u_log[log_index] = u;
+        log_index++;
+      }
+    } else {
+      distanceSensor.clearInterrupt();  
+      float u = computePID(prev_distance+(delta_distance/delta_time));
+      prev_distance = prev_distance + (delta_distance/delta_time);
+      if (u > 255) u = 250;
+      if (u < -255) u = -250;
+      if (u > 0) {
+        //Serial.print("u: ");
+        //Serial.println(u);
+        analogWrite(LM_F, u);
+        analogWrite(RM_F, u);
+        analogWrite(LM_B, 0);
+        analogWrite(RM_B, 0);
+      } else {
+        analogWrite(LM_F, 0);
+        analogWrite(RM_F, 0);
+        analogWrite(LM_B, -u);
+        analogWrite(RM_B, -u);
+      }
+      if (log_index < MAX_SAMPLES) {
+        dist_log[log_index] = prev_distance;
+        time_log[log_index] = millis() - startTime;
+        u_log[log_index] = u;
+        log_index++;
+      }
+    }
+  }
+  analogWrite(LM_F, 0);
+  analogWrite(LM_B, 0);
+  analogWrite(RM_F, 0);
+  analogWrite(RM_B, 0);
+  stop();
+  Serial.println("PID finished");
+}
+```
 
 
 
