@@ -455,6 +455,17 @@ void handlePID() {
 }
 ```
 
+### Graphing
+
+![Steady Control](../Images/Lab5/steady_control.png)
+This image has the same parameters as the first video I linked where I only use proportional control. While it reaches steady state with very low oscillation, it also reaches 0 speed which is a problem to ramp back up again. 
+
+![Oscillating Control](../Images/Lab5/oscillating_control.png)
+This image uses the proportional and derivative control from the third video. The values oscillate around the steady state a lot more so the gain values are too aggressive. 
+
+![Moving Target](../Images/Lab5/moving_target.png)
+This image corresponds to the parameters in the last two videos. I don't think the graph corresponds to either video but nevertheless I'm moving the target in front of the car to produce this graph. 
+
 
 
 ### Videos
