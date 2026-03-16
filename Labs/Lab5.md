@@ -467,7 +467,6 @@ This image uses the proportional and derivative control from the third video. Th
 This image corresponds to the parameters in the last two videos. I don't think the graph corresponds to either video but nevertheless I'm moving the target in front of the car to produce this graph. 
 
 
-
 ### Videos
 
 [![This video shows only proportional control. While the robot stops with basically no overshoot or oscillation, the main issue is that the speed of the motors goes completely to zero which is a problem because when I put an obstacle closer to the car (my hand) the car cannot move because it's running into the static friction limit](https://youtube.com/shorts/rKKTZ1t4_Kw/0.jpg)](https://youtube.com/shorts/rKKTZ1t4_Kw)
