@@ -19,7 +19,6 @@ window.MathJax = {
 
 ## Contents
 * [Prelab Tasks](#prelab)
-* [Lab Tasks](#labtasks)
 * [Timing](#timing)
 
 ---
@@ -31,7 +30,7 @@ window.MathJax = {
 The plan is to have the robot run for some set amount of time and shut off after that time has passed (in this case 5 seconds). I implemented three new commands over BLE: hard stop, get data, and pid tuning. Triggering either a hard stop or timing out the loop will stop the motors and then send over the sensor and timing data as well as the PID tuning parameters which have been stored on the Artemis as the robot ran. All BLE commands are sent before and after the PID loop runs the motors to prevent delays from that. All Serial print messages were removed at the end to mitigate delays from that. 
 
 
-## labtasks
+#labtasks
 
 ### Position Control 
 
