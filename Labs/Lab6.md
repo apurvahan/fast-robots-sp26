@@ -166,7 +166,7 @@ bool check_DMP() {
 
 ### Filtering 
 
-My robot was oscillating quite a lot while trying to maintain the angle. After tuning the PID controls for a while I realized that the issue might be jerky data values. A high pass filter helps with that because it blocks out sources of noise that could be causing the sensor to overshoot and overcorrect each time.
+My robot was oscillating quite a lot while trying to maintain the angle. After tuning the PID controls for a while I realized that the issue might be jerky data values. A low pass filter helps with that because it blocks out sources of noise that could be causing the sensor to overshoot and overcorrect each time.
 
 ```C++
 yfiltered_d = (1 - df_alpha) * yfiltered_d + (df_alpha) * gyrZ_now;  
@@ -217,7 +217,7 @@ const float MIN_SPEED = 75.0;
 
 ### PID Math
 
-I have a method called handleOrientationPID() that's called for the robot to start moving. If resets the FIFO queue for the DMP so that there aren't accumulated data values on it from the last run. I also start off with a yaw offset as I mentioned above and correct for it every time I get the yaw value. I run my loop for 30 seconds and each run I check the DMP for new yaw values and then computer PID using the relative yaw and the current gyroscope value (minus the bias). In my PID method I check if the error is too small (close enough to the target angle that I can stop calculating) and if not I get my u value using the PID equation:
+I have a method called handleOrientationPID() that's called for the robot to start moving. It resets the FIFO queue for the DMP so that there aren't accumulated data values on the data stack from the last run. I also start off with a yaw offset as I mentioned above and correct for it every time I get the yaw value. I run my loop for 30 seconds and each run I check the DMP for new yaw values and then computer PID using the relative yaw and the current gyroscope value (minus the bias). In my PID method I check if the error is too small (close enough to the target angle that I can stop calculating) and if not I get my u value using the PID equation:
 
 $$
 u = K_p \cdot e(t) + K_i \cdot \int e(t)\, dt + K_d \cdot \frac{de(t)}{dt}
@@ -326,12 +326,12 @@ The first video depicts my initial tuning. I ended up with extremely high deriva
 
 By the third video I finalized my PID numbers: 0.5 for proportional and 1.5 for derivative. It worked fairly well except for the vibration that happens around the final value. This is where I implemented the low pass filter and making the target value a small range of angles instead of a fixed angle. The fourth video is with all that implemented and the car is much more stable in that one. 
 
-[![Initial tuning:](https://youtube.com/shorts/bpwmEIdF8CM)]
+[![Initial tuning:](https://youtube.com/shorts/bpwmEIdF8CM)](https://youtube.com/shorts/bpwmEIdF8CM)
 
-[![Integral tuning:](https://youtube.com/shorts/Binja-x659Q)]
+[![Integral tuning:](https://youtube.com/shorts/Binja-x659Q)](https://youtube.com/shorts/Binja-x659Q)
 
-[![Completed PD tuning:](https://youtube.com/shorts/vJ3IatulNMw)]
+[![Completed PD tuning:](https://youtube.com/shorts/vJ3IatulNMw)](https://youtube.com/shorts/vJ3IatulNMw)
 
-[![Effects of filtering:](https://youtube.com/shorts/6FWKk5--WoE)]
+[![Effects of filtering:](https://youtube.com/shorts/6FWKk5--WoE)](https://youtube.com/shorts/6FWKk5--WoE)
 
 
