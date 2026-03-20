@@ -117,43 +117,18 @@ myICM.begin(Wire, 1);
 ```
 
 ### DMP Implementation 
-I start my loop by checking the DMP and getting the yaw value at the start. That yaw value defines my offset for that run as I care about the relative yaw for this system which is yaw - yaw_offset. Every PID look I check the DMP:
-
-```C++
-bool check_DMP() {
-  icm_20948_DMP_data_t data;
-  myICM.readDMPdataFromFIFO(&data);
-
-  if ((myICM.status == ICM_20948_Stat_Ok) || 
-      (myICM.status == ICM_20948_Stat_FIFOMoreDataAvail)) {
-
-      if ((data.header & DMP_header_bitmap_Quat9) > 0) {
-        double q1 = ((double)data.Quat9.Data.Q1) / 1073741824.0;
-        double q2 = ((double)data.Quat9.Data.Q2) / 1073741824.0;
-        double q3 = ((double)data.Quat9.Data.Q3) / 1073741824.0;
-        double q0 = sqrt(max(0.0, 1.0 - q1*q1 - q2*q2 - q3*q3)); 
-        double yaw_rad = atan2(2.0*(q0*q3 + q1*q2),
-                           1.0 - 2.0*(q2*q2 + q3*q3));
-        yaw = (float)(yaw_rad * (180.0 / PI));  
-
-        
-        return true;
-
-      } else {
-        return false;
-      }
-  } else {
-    return false;
-  }
-}
-```
+I start my loop by checking the DMP and getting the yaw value at the start. That yaw value defines my offset for that run as I care about the relative yaw for this system which is yaw - yaw_offset. Every PID look I check the DMP.
 
 The DMP uses quaternions instead of Euler angles. Quaternions are generally better than euler angles because they avoid gimball lock but that doesn't particularly matter in this case because we only care about motion in the yaw direction anyways. However, the DMP data is in terms of quaternions so I use it here to calculate the angle. 
 
-PUT THE RIGHT FORMULA THIS IS WRONG
 $$
-\a_yaw = \q_3 + \over \sqrt{q_1^2 + q_2^2 + q_3^2}
+\psi_{\text{yaw}} = \text{atan2}\!\Big(2(q_0 q_3 + q_1 q_2),\ 1 - 2(q_2^2 + q_3^2)\Big)
 $$
+
+$$
+q_0 = \sqrt{\max\!\left(0,\ 1 - q_1^2 - q_2^2 - q_3^2\right)}
+$$
+
 
 ### Quat9 vs Quat6
 
@@ -245,5 +220,118 @@ const float MIN_SPEED = 75.0;
 I have a method called handleOrientationPID() that's called for the robot to start moving. If resets the FIFO queue for the DMP so that there aren't accumulated data values on it from the last run. I also start off with a yaw offset as I mentioned above and correct for it every time I get the yaw value. I run my loop for 30 seconds and each run I check the DMP for new yaw values and then computer PID using the relative yaw and the current gyroscope value (minus the bias). In my PID method I check if the error is too small (close enough to the target angle that I can stop calculating) and if not I get my u value using the PID equation:
 
 $$
-\u = \K_p \times \error \add \K_i \times 
+u = K_p \cdot e(t) + K_i \cdot \int e(t)\, dt + K_d \cdot \frac{de(t)}{dt}
 $$
+
+Proportional controls how aggressively the robot reacts to the current error, so if the Kp value is too low the robot is quite sluggish and slow to response but if it's too fast the robot will oscillate around the target because it'll cycle between over and under shooting. 
+
+Integral corrects for steady-state error because it integrates that error over time. While that is helpful for mitigating steady state error that proportional control is generally not good at solving, integral control can create a lot of oscillation from a cycle of integrating the small over and undershoot. 
+
+Derivative is good as a damper because the magnitude is based on how fast the error is changing which is useful for decreasing overshoot. However, if the data is already noisy (which is probable in cases like sensor data), the derivatives aren't stable so the overall response is quite jittery. 
+
+I started off with proportional control until I got the oscillation down as much as I could and then I added integral control and derivative control in separately (so tried PI and then PD). Integral control worsened my issues as expected because the oscillations just got more aggressive. In the end I ended up with no integral control because my issue wasn't reaching the angle (no steady state error in my system) and integral control can't help with that problem. I started off with high (~5) Kd values before it started oscillating a lot and I started decreasing Kd until the robot turned more reasonably. In the end I ended up with a Kp = 0.05 and a Kd = 0.02 which are quite small but reasonable given the oscillation. 
+
+I used the gyroscope data directly for proportional control because it's already in terms of angular velocity so there's no additional math needed for it. 
+
+While I was testing for integral control, to prevent it from getting out of control I had upper and lower bounds that prevented u from going above 255. 
+
+
+### PID Code
+
+```C++
+float computeOrientationPID(float measured_yaw, float gyrZ_now) {
+  unsigned long now = millis();
+  float dt = (float)(now - prev_time) / 1000.0f;
+  float yfiltered_d = 0;
+  float df_alpha = 0.8;
+  prev_time = now;
+  if (dt <= 0) dt = 0.001f;  
+  //measured_yaw = measured_yaw + gyrZ_now*dt;
+  //yaw = measured_yaw;
+
+  float error = setpoint - measured_yaw;
+  if (abs(error) <= 2) {
+    return 0;
+  }
+  //while (error >  180.0f) error -= 360.0f;
+  //while (error < -180.0f) error += 360.0f;
+
+  integral += error * dt;
+  integral  = constrain(integral, -200.0f, 200.0f);
+
+  yfiltered_d = (1 - df_alpha) * yfiltered_d + (df_alpha) * gyrZ_now;  
+  float u = Kp * error + Ki * integral - Kd * yfiltered_d;
+  return u;
+}
+```
+
+```C++
+void handleOrientationPID() {
+  Serial.println("Starting Orientation PID");
+  yaw = 0.0;
+  integral = 0;
+  prev_error = 0;
+  log_index = 0;
+  prev_time = millis();
+  unsigned long startTime = millis();
+  float yaw_offset = yaw;
+  myICM.resetFIFO();
+  while (!check_DMP());  // wait for first real reading
+  yaw_offset = yaw;
+  float scaled_u = 0;
+
+  while (millis() - startTime < 30000) {   
+    //myICM.getAGMT(); 
+    check_DMP();
+    float relative_yaw = yaw - yaw_offset;
+    float u = computeOrientationPID(relative_yaw, myICM.gyrZ() - gyrZ_bias);
+    //float u = computeOrientationPID(yaw, myICM.gyrZ() - gyrZ_bias);
+
+    const float MIN_SPEED = 75.0;
+    if (abs(u) > 0 && abs(u) < MIN_SPEED) {
+      scaled_u = (1-(abs(u)/255))*(255-MIN_SPEED) + MIN_SPEED;
+      u = scaled_u * (u > 0 ? 1.0 : -1.0);
+    }
+    u = constrain(u, -255, 255);
+
+    drive(u, 0);
+
+    if (log_index < MAX_SAMPLES) {
+      yaw_log[log_index] = yaw;
+      Serial.println(yaw);
+      time_log[log_index] = millis() - startTime;
+      u_log[log_index] = u;
+      log_index++;
+    }
+  }
+
+  stop();
+}
+
+void drive(float u, float forward_speed) {
+    int left  = (int)constrain(u, -255, 255);
+    int right = (int)constrain(-u, -255, 255);
+
+    analogWrite(LM_F, left  > 0 ?  left  : 0);
+    analogWrite(LM_B, left  < 0 ? -left  : 0);
+    analogWrite(RM_F, right > 0 ?  right : 0);
+    analogWrite(RM_B, right < 0 ? -right : 0);
+}
+```
+
+
+For driving code, I condensed the logic down significantly. The wheels spin in opposite direction and baed on whether they are commanded a positive or negative u, the right motor pin is set to high. 
+
+The first video depicts my initial tuning. I ended up with extremely high derivative control (5) and low proportional control and it was strange because it seemed to work at some combinations of those parameters and not others. I eventually figured out that no matter how much I tweaked it my derivative control being high was responsible for a lot of the oscillation so I brought it down to a much smaller value of 1.5 which ended up being my final value. I upped my proportional control from my previous testing around 0.1 to 0.5. The second video is when I tried to mess with the integral control to see if that would help with minimizing the oscillation but I think I still had issues with overshoot, especially when it came to the first turn. I had an integral control value of around 0.2 which I ended up bringing down to around 0.02 and finally 0 because similar to Lab 5 I don't think I actually need PID for my robot. PD seems to work alright provided my derivative control isn't too high. 
+
+By the third video I finalized my PID numbers: 0.5 for proportional and 1.5 for derivative. It worked fairly well except for the vibration that happens around the final value. This is where I implemented the low pass filter and making the target value a small range of angles instead of a fixed angle. The fourth video is with all that implemented and the car is much more stable in that one. 
+
+[![Initial tuning:](https://youtube.com/shorts/bpwmEIdF8CM)]
+
+[![Integral tuning:](https://youtube.com/shorts/Binja-x659Q)]
+
+[![Completed PD tuning:](https://youtube.com/shorts/vJ3IatulNMw)]
+
+[![Effects of filtering:](https://youtube.com/shorts/6FWKk5--WoE)]
+
+
