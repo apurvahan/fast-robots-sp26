@@ -326,12 +326,14 @@ The first video depicts my initial tuning. I ended up with extremely high deriva
 
 By the third video I finalized my PID numbers: 0.5 for proportional and 1.5 for derivative. It worked fairly well except for the vibration that happens around the final value. This is where I implemented the low pass filter and making the target value a small range of angles instead of a fixed angle. The fourth video is with all that implemented and the car is much more stable in that one. 
 
-[![Initial tuning:](https://youtube.com/shorts/bpwmEIdF8CM)](https://youtube.com/shorts/bpwmEIdF8CM)
+[![Initial tuning:](https://youtube.com/shorts/6FWKk5--WoE)](https://youtube.com/shorts/6FWKk5--WoE)
 
-[![Integral tuning:](https://youtube.com/shorts/Binja-x659Q)](https://youtube.com/shorts/Binja-x659Q)
+[![Integral tuning:](https://youtube.com/shorts/vJ3IatulNMw)](https://youtube.com/shorts/vJ3IatulNMw)
 
-[![Completed PD tuning:](https://youtube.com/shorts/vJ3IatulNMw)](https://youtube.com/shorts/vJ3IatulNMw)
+[![Completed PD tuning:](https://youtube.com/shorts/Binja-x659Q)](https://youtube.com/shorts/Binja-x659Q)
 
-[![Effects of filtering:](https://youtube.com/shorts/6FWKk5--WoE)](https://youtube.com/shorts/6FWKk5--WoE)
+[![Effects of filtering:](https://youtube.com/shorts/bpwmEIdF8CM)](https://youtube.com/shorts/bpwmEIdF8CM)
 
 
+![Orientation graph](../Images/Lab5/orientation_graph.png)
+This graph starts with the robot reaching steady state position and then I agitate it repeatedly by hitting it. It returns back to the original position each time. 
