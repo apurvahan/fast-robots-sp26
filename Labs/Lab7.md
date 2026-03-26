@@ -90,6 +90,8 @@ df.to_csv('step_response.csv', index=False)
 
 The final value for m was 2.2 m/s and tau = 0.9. I then got the 90% rise value which was 1.98 m/s and checked the time corresponding to that, which was 2.072 seconds. 
 
+![Curve Fit](../Images/Lab7/kalman_curve_fit.png) 
+
 I then used the formulas for d and m to calculate my values (didn't calculate the raw values, just put the formulas into python). I used those values to get my A, B, and C matricies. 
 
 $$
@@ -320,6 +322,6 @@ Filtered data:
 
 #### Videos
 
-Will put in a bit, I'm so sorry!!
+Will put in a bit, I'm so sorry!! 
 
 
