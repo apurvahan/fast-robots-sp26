@@ -322,6 +322,18 @@ Filtered data:
 
 #### Videos
 
-Will put in a bit, I'm so sorry!! 
+Successful Run: 
 
+[![Effects of filtering:](https://youtube.com/shorts/C1f3SdEaVrQ)](https://youtube.com/shorts/C1f3SdEaVrQ)
 
+Graphs:
+
+![Successful dist vs time](../Images/Lab7/successful_dist_vs_time.png) 
+
+![Sucessful KF dist vs time](../Images/Lab7/successful_dist_vs_time_KF.png) 
+
+![Successful vel vs time](../Images/Lab7/successful_vel.png) 
+
+![Sucessful KF vel vs time](../Images/Lab7/successful_vel_KF.png) 
+
+![Sucessful step input in time](../Images/Lab7/successful_step_input.png) 
