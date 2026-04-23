@@ -21,7 +21,7 @@ window.MathJax = {
 ##  Approach 
 
 ### Compute Control 
-The IMU is mapped so that getting past 180 degrees switches to counting down from -180 degrees so I had to make sure that the pose math kept that in mind. 
+The IMU is mapped so that getting past 180 degrees switches to counting down from -180 degrees so I had to make sure that the pose math kept that in mind. This step is just using linear interpolation to get the next pose. 
 ```python
 def compute_control(cur_pose, prev_pose):
   dx = cur_pose[0] - prev_pose[0]
@@ -33,7 +33,7 @@ def compute_control(cur_pose, prev_pose):
 ```
 
 ### Odometry Motion Model
-Transition probability using Gaussians for each of the parameters of the pose to compare needed control to tranisition into the next pose and the actual control state. We use compute control on the pose and the current u (commanded control) and compare the two and if the motions are pretty close then the returned probability is high. We use separate Gaussians because each type of motion (2 translation, 1 rotation) represents a physical degree of freedom the robot has. We are able to manipulate one without changing the other so they aren't dependent on one another. However, the probabilities that we are close to the predicting position relies on all three of them being somewhat close which is why they are multiplied. 
+Transition probability using Gaussians for each of the parameters of the pose to compare needed control to tranisition into the next pose and the actual control state. We use compute control on the pose and the current u (commanded control) and compare the two and if the motions are pretty close then the returned probability is high. We use separate Gaussians because each type of motion (2 translation, 1 rotation) represents a physical degree of freedom the robot has. We are able to phyically (on axis turns, driving in one direction) manipulate one without changing the other so they aren't dependent on one another. However, the probabilities that we are close to the predicting position relies on all three of them being somewhat close which is why they are multiplied. 
  
 ```python
 def odom_motion_model(cur_pose, prev_pose, u):
@@ -74,7 +74,7 @@ def prediction_step(cur_odom, prev_odom):
 
 ### Sensor Model
 
-This pro
+This step gets the 18 likelihoods per cell. The variable obs represent the true measurements for that cell (already known values) (one row of obs_views). The gaussian function evaluates how likely each actual measurement is given the expected measurement and sensor noise
 
 ```python
 def sensor_model(obs):
@@ -84,9 +84,20 @@ def sensor_model(obs):
 
 ### Update Step
 
+This step compares the expected measurements made from the ray casting to the actual measurements being received from the new sensor update. It gets the probability of each actual versus expected measurement and then multiplies them into the bel_bar for each. If the value is very plausible, the bel_bar value is high and if the value is not very plausible, the bel_bar is low. This acts as a filter as it amplifies the more plausible data. The division step just normalizes the probability to 1. The update step is important because it sharpens the distribution of bel_bar meaning we are more confident about the pose of the robot. 
+
 ```python
 def update_step():
   likelihoods = np.prod(loc.gaussian(loc.obs_range_data.flatten(), mapper.obs_views, loc.sensor_sigma),axis=3)
   loc.bel = likelihoods * loc.bel_bar
   loc.bel /= np.sum(loc.bel)
 ```
+
+## Implementation
+
+This system is effective when when the robot is near walls, corners, or obstacles because each reading is more distinguishable because there's a more obvious change in distance measured at each angle. This means that the cells are very different from one another so the bel_bar will heavily favor the right cell, as will the product of the Gaussians. My robot struggles in open areas because the cells all see similar distance readings from a far off wall. That means bel is more spread out and it's harder to identify which cell is more likely when they have similar readings. 
+
+In addition, human error is a problem If the heading estimate is off, a wrong 0 means that at fixed angular offsets from the robot's current heading, you're comparing the measurements against the wrong angular part of obs_views, causing wrong likelihoods across all the readings.
+
+Successful Map: 
+![Hallway](../Images/lab10_map.png)
