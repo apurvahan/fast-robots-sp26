@@ -286,5 +286,5 @@ Hallway:
 ![Hallway](../Images/Lab9/hallway.png) 
 
 
-I promise I will put my video up soon but it seems like my robot is having battery issues. Stay tuned and so sorry. 
-
+Video of it spinning
+[![Spinning](https://youtube.com/shorts/2XaE04zMEgU)](https://youtube.com/shorts/2XaE04zMEgU)
