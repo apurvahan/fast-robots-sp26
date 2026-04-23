@@ -285,3 +285,6 @@ The data values shown in the code are from running the trials (in a separate scr
 Hallway:
 ![Hallway](../Images/Lab9/hallway.png) 
 
+
+I promise I will put my video up soon but it seems like my robot is having battery issues. Stay tuned and so sorry. 
+
