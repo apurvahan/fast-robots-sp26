@@ -20,147 +20,73 @@ window.MathJax = {
 
 ##  Approach 
 
-My approach was to start with the car speeding into the wall and keep the TOF sensor sampling at a high rate (same as Labs 5-7, 20ms) so that it can detect the wall. The problem with that was because the car was running at very high speeds (PWM of 200 and up) by the time the TOF sensor had detected that the distance to the wall was under the threshhold, the car would have moved forward and crashed. I thought a Kalman filter would be helpful to filter out any noisy data points confusing the sensor and give me a sense of where the car is in real time. I implemented the Kalman filter from the previous lab with essentially no changes because my sensor sample frequency is identical and it's the same car so all other parameters are the same. The TOF sensor improved it but it was still crashing into the wall or coming very very close and reversing because it was going to fast. The improvement that I made that helped was getting the kalman filter found velocity and using that to predict where the car would end up. I defined a constant braking distance which I tuned after a few trials of figuring out how long it takes for the car to slow down and multiplied that by the kalman filtered instantaneous speed to get the distance from the wall at that moment. This helped me a lot with stopping in time. 
-
-```C++
-void handleFlip() {
-  log_index = 0;
-  current_u = 250;
-
-  while (!distanceSensor.checkForDataReady()) { delay(1); }
-  float raw_dist = distanceSensor.getDistance();
-  distanceSensor.clearInterrupt();
-
-  x_kf(0) = raw_dist;
-  x_kf(1) = 0.0;
-  sig_kf = {1.0, 0.0, 0.0, 1.0};
-  kf_initialized = true;
-
-  bool updated = false;
-  float startTime = millis();
-  float lastKF = millis();
-
-  drive(current_u);
-
-  while (millis() - startTime < 8000) {
-    if (!updated && distanceSensor.checkForDataReady()) {
-      raw_dist = distanceSensor.getDistance();
-      distanceSensor.clearInterrupt();
-      updated = true;
-    }
-
-    if (millis() - lastKF >= 25) {
-      kalmanFilter(current_u, raw_dist, updated);
-      updated = false;
-
-      float kf_dist = x_kf(0);
-      float kf_vel  = x_kf(1);
-
-      //brake_time = 5; //15 worked well previously
-      float predicted_dist = kf_dist + kf_vel * brake_time;
-
-      if (log_index < MAX_SAMPLES) {
-        dist_log[log_index]    = raw_dist;
-        dist_kf_log[log_index] = kf_dist;
-        time_log[log_index]    = millis() - startTime;
-        u_log[log_index]       = current_u;
-        log_index++;
-      }
-
-      lastKF = millis(); 
-
-      if (predicted_dist <= setpoint) {
-        stop();
-        reverse(250);  
-        kf_initialized = false;
-        float flipStart = millis();
-        lastKF = millis();
-
-        while (millis() - flipStart < 2000) {
-          if (!updated && distanceSensor.checkForDataReady()) {
-            raw_dist = distanceSensor.getDistance();
-            distanceSensor.clearInterrupt();
-            updated = true;
-          }
-          if (millis() - lastKF >= 25) {
-            kalmanFilter(-250, raw_dist, updated);
-            updated = false;
-            if (log_index < MAX_SAMPLES) {
-              dist_log[log_index]    = raw_dist;
-              dist_kf_log[log_index] = x_kf(0);
-              time_log[log_index]    = millis() - startTime;
-              u_log[log_index]       = -250;
-              log_index++;
-            }
-            lastKF = millis();
-          }
-        }
-        stop();
-        return;
-      }
-    }
-  }
-  stop();
-}
+### Compute Control 
+The IMU is mapped so that getting past 180 degrees switches to counting down from -180 degrees so I had to make sure that the pose math kept that in mind. 
+```python
+def compute_control(cur_pose, prev_pose):
+  dx = cur_pose[0] - prev_pose[0]
+  dy = cur_pose[1] - prev_pose[1]
+  delta_trans = np.hypot(dx, dy)
+  delta_rot_1 = mapper.normalize_angle(np.degrees(np.arctan2(dy, dx))- prev_pose[2])
+  delta_rot_2 = mapper.normalize_angle(cur_pose[2] - prev_pose[2] - delta_rot_1)
+  return delta_rot_1, delta_trans, delta_rot_2
 ```
 
-One of the issues I ran into was with getting the car to stop in time. Active braking helped a lot with that problem as my stop command made the motors go to a PWM of 1 as opposed to 0. Having the motors still engaged rather than completely turned off forces the motors to slow down aggressively instead of turning off and coasting because of inertia. This helped my car make the sudden stop required to make the flip. 
-
-```C++
-void stop() {
-  analogWrite(LM_F, 1);
-  analogWrite(LM_B, 0);
-  analogWrite(RM_F, 1);
-  analogWrite(RM_B, 0);
-  u_log[log_index] = 0;
-  log_index++;
-}
+### Odometry Motion Model
+Transition probability using Gaussians for each of the parameters of the pose to compare needed control to tranisition into the next pose and the actual control state. We use compute control on the pose and the current u (commanded control) and compare the two and if the motions are pretty close then the returned probability is high. We use separate Gaussians because each type of motion (2 translation, 1 rotation) represents a physical degree of freedom the robot has. We are able to manipulate one without changing the other so they aren't dependent on one another. However, the probabilities that we are close to the predicting position relies on all three of them being somewhat close which is why they are multiplied. 
+ 
+```python
+def odom_motion_model(cur_pose, prev_pose, u):
+  rot1_u, trans_u, rot2_u = u
+  rot1_hat, trans_hat, rot2_hat = compute_control(cur_pose, prev_pose)
+  prob = (loc.gaussian(mapper.normalize_angle(rot1_hat -rot1_u),0,loc.odom_rot_sigma)
+    * loc.gaussian(trans_hat-trans_u,0,loc.odom_trans_sigma)
+    *loc.gaussian(mapper.normalize_angle(rot2_hat-rot2_u),0,loc.odom_rot_sigma))
+    return prob
 ```
 
-I had both the braking distance and the distance from the wall as parameters that I would pass in via my python commands so that I could figure out a good combination of both when acutally running my trials. 
+### Prediction Step
+Before the prediction step, loc.bel is a 3d array of each cell containing a probability. These are the best belief about the robots location based on the most recent sensor update. However, once the robot moves, the belief changes (until the next sensor reading) and we use loc.bel_bar as a prediction for that change. Bel_bar sums over every previous step and multiplies how probable that previous state was and how likely the new motion adjustment would take the robot to the next state. This summation then gives the probability of the new state. The 0.0001 check is to avoid extra looping because this is quite a computationally heavy step. If the loc.bel at that particular step is incredibly small, it is not meaningfully adding to the overall probability sum so we can skip iterating through it because we're not going to get a lot of info out of it. The outer three loops iterate over every cell in 3d and if the belief isn't extremely small we map it to world coordinates, calculate the probability at that step and add it to the running bel_bar sum. 
 
-```C++
-case SEND_THREE_FLOATS:
-        float fl_a, fl_b, fl_c, fl_d;
-        robot_cmd.get_next_value(fl_a);  
-        robot_cmd.get_next_value(fl_b);
-        robot_cmd.get_next_value(fl_c);
-        robot_cmd.get_next_value(fl_d);
-        Kp = fl_a;
-        Ki = fl_b;
-        Kd = fl_c;
-        brake_time = fl_d;
-        min_speed = 20;
-        break;
-      case TO_DIST:
-        float dist_py;
-        robot_cmd.get_next_value(dist_py);
-        setpoint = dist_py;
-        break;
-      case TO_FLIP:
-        float dist_flip;
-        robot_cmd.get_next_value(dist_flip);
-        setpoint = dist_flip;
-        handleFlip();
-        break;
+```python
+def prediction_step(cur_odom, prev_odom):
+  u = compute_control(cur_odom, prev_odom)
+
+  loc.bel_bar = np.zeros((mapper.MAX_CELLS_X, mapper.MAX_CELLS_Y, mapper.MAX_CELLS_A))
+
+  for cx in range(mapper.MAX_CELLS_X):
+    for cy in range(mapper.MAX_CELLS_Y):
+      for ca in range(mapper.MAX_CELLS_A):
+        if loc.bel[cx, cy, ca] < 0.0001:
+          continue
+        prev_pose = mapper.from_map(cx, cy, ca)
+
+        for nx in range(mapper.MAX_CELLS_X):
+          for ny in range(mapper.MAX_CELLS_Y):
+            for na in range(mapper.MAX_CELLS_A):
+              cur_pose = mapper.from_map(nx, ny, na)
+              prob = odom_motion_model(cur_pose, prev_pose, u)
+              loc.bel_bar[nx, ny, na] += prob * loc.bel[cx, cy, ca]
+
+  loc.bel_bar /= np.sum(loc.bel_bar)
+
 ```
 
-I then got the raw distance values and the Kalman filtered distance values as arrays in python and graphed them. When I was tuning I found that this helped me figure out if my Kalman filter was actually effective. For a lot of my earlier trials my Kalman filter readings had an offset from forgetting to update the KF filter flag, so the car was responding to the offset KF distance values that didn't correspond to the real ones. I used graphs like the one below to debug this:
+### Sensor Model
 
-Initial KF Filter with Problems:
-![Bad KF Filter](../Images/Lab8/bad_KF_filter.png) 
+This pro
 
-Better Filter for a Later Run:
-![Good KF Filter](../Images/Lab8/good_KF_filter.png) 
+```python
+def sensor_model(obs):
+  prob_array = loc.gaussian(loc.obs_range_data.flatten(), obs, loc.sensor_sigma)
+  return prob_array
+```
 
+### Update Step
 
-Here are my videos of it running:
-
-[![Run 1:](https://youtu.be/Dtsjgl5BLGw)](https://youtu.be/Dtsjgl5BLGw)
-
-[![Run 2:](https://youtu.be/L5N_h0FFInc)](https://youtu.be/L5N_h0FFInc)
-
-[![Run 3:](https://youtu.be/l9EDUjT5MvU)](https://youtu.be/l9EDUjT5MvU)
-
-[![Run 4:](https://youtu.be/gNyw11PmsVo)](https://youtu.be/gNyw11PmsVo)
-
+```python
+def update_step():
+  likelihoods = np.prod(loc.gaussian(loc.obs_range_data.flatten(), mapper.obs_views, loc.sensor_sigma),axis=3)
+  loc.bel = likelihoods * loc.bel_bar
+  loc.bel /= np.sum(loc.bel)
+```

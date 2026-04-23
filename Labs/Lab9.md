@@ -210,6 +210,78 @@ plt.show()
 Code for mapping the area, based on the slides from class. 
 
 ```python
-#will put in soon
+from ble import get_ble_controller
+from base_ble import LOG
+from cmd_types import CMD
+import time
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import math
+import csv
+import pandas as pd
+
+# with reference to the center of the robot, the sensor is in front generally centered and straight
+off_x = 0.08   
+off_y = 0.00   
+ang = 0.0    
+
+def T_sensor_to_robot(tx, ty, alpha):
+    return np.array([[np.cos(alpha),-np.sin(alpha),tx], [np.sin(alpha),np.cos(alpha),ty], [0,0,1]])
+
+def T_robot_to_world(rx, ry, theta):
+    theta_rad = np.radians(theta)
+    return np.array([[np.cos(theta_rad),-np.sin(theta_rad),rx], [np.sin(theta_rad),np.cos(theta_rad),ry], [0,0,1]])
+
+robot_positions = [
+    (148/1000,(345-42)/1000),# position 1
+    (12/1000,(345-42)/1000),# position 2
+    (148/1000,42/1000),# position 3
+    (6/1000,42/1000),# position 4
+]
+
+colors = ['blue','red','green','purple']
+labels = ['Position 1','Position 2','Position 3','Position 4']
+
+all_data = [
+    [(1.421, 327), (34.012, 467), (62.937, 299), (90.791, 226), (121.028, 279),
+     (151.229, 530), (-178.017, 499), (-147.668, 499), (-118.174, 1636), (-88.995, 1402), (-56.683, 837), (-27.996,456)],
+    [(1.421, 469), (34.012, 590), (62.937, 385), (90.791, 265), (121.028, 239),
+     (151.229, 412), (-178.017, 356), (-147.668, 385), (-118.174, 1573), (-88.995, 1412), (-56.683, 921), (-27.996, 585)],
+    [(1.421, 423), (34.012, 650), (62.937, 544), (90.791, 487), (121.028, 521),
+     (151.229, 695), (-178.017, 556), (-147.668, 422), (-118.174, 1410), (-88.995, 1141), (-56.683, 634), (-27.996, 405)],
+    [(1.421, 540), (34.012, 743), (62.937, 596), (90.791, 506), (121.028, 500),
+     (151.229, 610), (-178.017, 433), (-147.668, 280), (-118.174, 1338), (-88.995, 1153), (-56.683, 743), (-27.996, 546)],
+]
+
+Ts2r = T_sensor_to_robot(off_x, off_y, ang)
+fig, ax = plt.subplots(figsize=(10, 10))
+for pos_idx, (data, (rx, ry)) in enumerate(zip(all_data, robot_positions)):
+    world_x = []
+    world_y = []
+    for yaw_deg, dist_mm in data:
+        dist_m = dist_mm / 1000.0
+        p_sensor = np.array([dist_m, 0, 1])
+        Tr2w = T_robot_to_world(rx, ry, yaw_deg)
+        p_world = Tr2w @ Ts2r @ p_sensor
+        world_x.append(p_world[0])
+        world_y.append(p_world[1])
+    ax.scatter(world_x, world_y,color=colors[pos_idx],label=labels[pos_idx],s=40, zorder=3)
+    ax.scatter(rx, ry,color=colors[pos_idx],marker='x', s=200,linewidths=3, zorder=4)
+
+ax.set_xlabel('x (m)')
+ax.set_ylabel('y (m)')
+ax.set_title('Tof Sensor Readings')
+ax.legend()
+ax.grid(True)
+ax.set_aspect('equal')
+plt.tight_layout()
+plt.show()
 ```
+The data values shown in the code are from running the trials (in a separate script) and then transferring the arrays over. Unfortunately I did do that by hand so ideally at some point I will formatting it nicely so I don't do that. I picked four locations in the hallway that I was mapping and spun the robot there. I realized that I was sitting at the entrance of the hallway so two of the spins actually capture where I was sitting. It took me a few tries for some of them, especially because of the position drift causing the starting location of the turn and the end location of the turn to be slightly off. This affected the TOF sensor readings. You can still kind of see it in how much error there is between each position and the estimate of where the walls are. The arrays are just the direction cosine matricies introduced in lecture for transforming between coordinate frames, the world coordinate frame had its zero set at the bottom left hand corner of the hallway while the robot frame was in the center of the robot. The sensor is at the front of the robot, not at the center of mass which is why I have to include the offset of the sensor relative to the robot but that doesn't affect the quality of the readings. I think in the future I want to use both my TOF sensor and fuse them together to get higher quality data. I also think I need to run it with more coordinates maybe in a smaller area (like the maze) to prevent the inaccuracies that come from using long distance mode TOF rather than the shorter distance one. 
+
+![World Map](../Images/Lab9/world_map.png) 
+
+Hallway:
+![Hallway](../Images/Lab9/hallway.png) 
 
