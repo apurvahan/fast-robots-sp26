@@ -18,149 +18,110 @@ window.MathJax = {
 [← Back to Home]({{ '/' | relative_url }})
 
 
-##  Approach 
+##  Localization in Sim
 
-My approach was to start with the car speeding into the wall and keep the TOF sensor sampling at a high rate (same as Labs 5-7, 20ms) so that it can detect the wall. The problem with that was because the car was running at very high speeds (PWM of 200 and up) by the time the TOF sensor had detected that the distance to the wall was under the threshhold, the car would have moved forward and crashed. I thought a Kalman filter would be helpful to filter out any noisy data points confusing the sensor and give me a sense of where the car is in real time. I implemented the Kalman filter from the previous lab with essentially no changes because my sensor sample frequency is identical and it's the same car so all other parameters are the same. The TOF sensor improved it but it was still crashing into the wall or coming very very close and reversing because it was going to fast. The improvement that I made that helped was getting the kalman filter found velocity and using that to predict where the car would end up. I defined a constant braking distance which I tuned after a few trials of figuring out how long it takes for the car to slow down and multiplied that by the kalman filtered instantaneous speed to get the distance from the wall at that moment. This helped me a lot with stopping in time. 
+![Sim Localization](../Images/lab10_map.png)
 
-```C++
-void handleFlip() {
-  log_index = 0;
-  current_u = 250;
+I started out this lab by running the provided simulation code to see how it performs. The plot above shows the odometry (red), ground truth (green), and belief (blue) trajectories over the full pre-planned path. It does pretty well but the odometry drifts from the true path via accumulated error with each motion step. The belief trajectory closely follows the ground truth however, which shows that the Bayes filter successfully corrects for odometry noise using the sensor update step. 
 
-  while (!distanceSensor.checkForDataReady()) { delay(1); }
-  float raw_dist = distanceSensor.getDistance();
-  distanceSensor.clearInterrupt();
+The deviations are probably due to the grid resolution and inaccuracy when ray-casting. Grid discretization restricts the position resolution by reporting the center of the most probable cell instead of some continuous value. Second in larger open areas the ray-cast profiles are very similar for cells near each orther so the probabilities can be off due to being added to the wrong coordinate. 
 
-  x_kf(0) = raw_dist;
-  x_kf(1) = 0.0;
-  sig_kf = {1.0, 0.0, 0.0, 1.0};
-  kf_initialized = true;
+## Localization code
 
-  bool updated = false;
-  float startTime = millis();
-  float lastKF = millis();
+```python
+def perform_observation_loop(self, rot_vel=120):
+  """Perform the observation loop behavior on the real robot, where the robot does  
+   a 360 degree turn in place while collecting equidistant (in the angular space) sensor
+  readings, with the first sensor reading taken at the robot's current heading. 
+  The number of sensor readings depends on "observations_count"(=18) defined in world.yaml.
+        
+  Keyword arguments:
+    rot_vel -- (Optional) Angular Velocity for loop (degrees/second)
+                        Do not remove this parameter from the function definition, even if you don't use it.
+  Returns:
+    sensor_ranges   -- A column numpy array of the range values (meters)
+    sensor_bearings -- A column numpy array of the bearings at which the sensor readings were taken (degrees)
+      The bearing values are not used in the Localization module, so you may return a empty numpy array
+  """
 
-  drive(current_u);
+  sensor_ranges = []
+  sensor_bearings = []
 
-  while (millis() - startTime < 8000) {
-    if (!updated && distanceSensor.checkForDataReady()) {
-      raw_dist = distanceSensor.getDistance();
-      distanceSensor.clearInterrupt();
-      updated = true;
-    }
+  def notification_handler(uuid, byte_array):
+    "angle|distance"
+    msg = byte_array.decode()
+    angle, dist = msg.split(',')
+    sensor_bearings.append(float(angle))
+    sensor_ranges.append(float(dist) / 1000)
 
-    if (millis() - lastKF >= 25) {
-      kalmanFilter(current_u, raw_dist, updated);
-      updated = false;
 
-      float kf_dist = x_kf(0);
-      float kf_vel  = x_kf(1);
+  self.ble.send_command(CMD.SEND_THREE_FLOATS, "1.20|0.42|0") #id
+  asyncio.run(asyncio.sleep(5))
 
-      //brake_time = 5; //15 worked well previously
-      float predicted_dist = kf_dist + kf_vel * brake_time;
+  self.ble.start_notify(self.ble.uuid['RX_STRING'], notification_handler)
+  self.ble.send_command(CMD.TO_ORIENTATION, 0)  
+  asyncio.run(asyncio.sleep(300))
 
-      if (log_index < MAX_SAMPLES) {
-        dist_log[log_index]    = raw_dist;
-        dist_kf_log[log_index] = kf_dist;
-        time_log[log_index]    = millis() - startTime;
-        u_log[log_index]       = current_u;
-        log_index++;
-      }
+  self.ble.send_command(CMD.GET_TOF, "")
+  asyncio.run(asyncio.sleep(45))
 
-      lastKF = millis(); 
+  self.ble.stop_notify(self.ble.uuid['RX_STRING'])
 
-      if (predicted_dist <= setpoint) {
-        stop();
-        reverse(250);  
-        kf_initialized = false;
-        float flipStart = millis();
-        lastKF = millis();
-
-        while (millis() - flipStart < 2000) {
-          if (!updated && distanceSensor.checkForDataReady()) {
-            raw_dist = distanceSensor.getDistance();
-            distanceSensor.clearInterrupt();
-            updated = true;
-          }
-          if (millis() - lastKF >= 25) {
-            kalmanFilter(-250, raw_dist, updated);
-            updated = false;
-            if (log_index < MAX_SAMPLES) {
-              dist_log[log_index]    = raw_dist;
-              dist_kf_log[log_index] = x_kf(0);
-              time_log[log_index]    = millis() - startTime;
-              u_log[log_index]       = -250;
-              log_index++;
-            }
-            lastKF = millis();
-          }
-        }
-        stop();
-        return;
-      }
-    }
-  }
-  stop();
-}
+  sensor_ranges   = np.array(sensor_ranges[:18])[np.newaxis].T
+  sensor_bearings = np.array(sensor_bearings[:18])[np.newaxis].T
+    
+  return sensor_ranges, sensor_bearings
 ```
 
-One of the issues I ran into was with getting the car to stop in time. Active braking helped a lot with that problem as my stop command made the motors go to a PWM of 1 as opposed to 0. Having the motors still engaged rather than completely turned off forces the motors to slow down aggressively instead of turning off and coasting because of inertia. This helped my car make the sudden stop required to make the flip. 
+There wasn't too much for this step, a lot of it was transferring over the commands from lab 9. I did change the angle increments and the direction it turns for it to have 18 data points sampled counterclockwise. I tried doing the improper way of using "asyncio" described in the lab but honestly the delay consistently works across different trials so I'm not too worried about it. The only other thing I worried about here other than transferring over lab 9 code was just the formatting into numpy column arrays to fit the format expected by the rest of the filter. 
 
-```C++
-void stop() {
-  analogWrite(LM_F, 1);
-  analogWrite(LM_B, 0);
-  analogWrite(RM_F, 1);
-  analogWrite(RM_B, 0);
-  u_log[log_index] = 0;
-  log_index++;
-}
-```
+For some of the readings I did initially, I did forget to change the CCW part and the interesting thing was that my localization ran but it almost seemed like the world frame flipped axis. It would get the right x location but the negative of the y location and vice versa. 
 
-I had both the braking distance and the distance from the wall as parameters that I would pass in via my python commands so that I could figure out a good combination of both when acutally running my trials. 
+The function returns sensor_ranges and sensor_bearings as column arrays of shape (18, 1). The bearing values are not used by the localization module, so while they are collected and returned for completeness, only the range values feed into the update step.
 
-```C++
-case SEND_THREE_FLOATS:
-        float fl_a, fl_b, fl_c, fl_d;
-        robot_cmd.get_next_value(fl_a);  
-        robot_cmd.get_next_value(fl_b);
-        robot_cmd.get_next_value(fl_c);
-        robot_cmd.get_next_value(fl_d);
-        Kp = fl_a;
-        Ki = fl_b;
-        Kd = fl_c;
-        brake_time = fl_d;
-        min_speed = 20;
-        break;
-      case TO_DIST:
-        float dist_py;
-        robot_cmd.get_next_value(dist_py);
-        setpoint = dist_py;
-        break;
-      case TO_FLIP:
-        float dist_flip;
-        robot_cmd.get_next_value(dist_flip);
-        setpoint = dist_flip;
-        handleFlip();
-        break;
-```
+## Update Step
 
-I then got the raw distance values and the Kalman filtered distance values as arrays in python and graphed them. When I was tuning I found that this helped me figure out if my Kalman filter was actually effective. For a lot of my earlier trials my Kalman filter readings had an offset from forgetting to update the KF filter flag, so the car was responding to the offset KF distance values that didn't correspond to the real ones. I used graphs like the one below to debug this:
+### Location 1: (-3ft, -2ft, 0) --> (-0.91 m, -0.6096 m, 0 deg)
 
-Initial KF Filter with Problems:
-![Bad KF Filter](../Images/Lab8/bad_KF_filter.png) 
+![Location 1 belief](../Images/loc1_belief.png)
 
-Better Filter for a Later Run:
-![Good KF Filter](../Images/Lab8/good_KF_filter.png) 
+The location it thinks it's at is (-0.914 m, -0.610, -170). The x, y coordinates are almost perfect but the angle is off. 
+
+This makes sense to me because this location is in the bottom-left corner region of the map which helps with accuracy because being near two walls means the readings are quite distinctive. The TOF sensor will get more readings from walls in close range at specific angles which helps pinpoints the cell. Corners are very useful for localization.
+
+![Location 1 map](../Images/loc1_map.png)
+
+### Location 2: (0ft, 3ft, 0) --> (0, 0.91 m)
+
+![Location 2 belief](../Images/loc2_belief.png)
+
+The location it thinks it's at is (0, 0.914, 90). The x,y coordinates are almost perfect but the angle is off. This is near the top wall and small box obstacle so for a similar reason as location 1, the combination of multiple distinctive walls helps identify the location with more confidence.
+
+![Location 2 map](../Images/loc2_map.png)
+
+### Location 3: (5ft, -3ft, 0) --> (1.524 m, -0.91 m)
+
+![Location 3 belief](../Images/loc3_belief.png)
+
+The location it thinks it's at is (1.829, -1.219, 90). This is fairly off from the actual coordinates but I noticed that for this one my car drifted a lot. I did run it twice and got similarly off results so it might be the ray casting uncertainty I mentioned earlier. And, the angle is still off on this one. 
+
+This location is in the bottom-right area which has relatively few nearby walls. Several of the 18 readings will be reading far distance values, which tend to be less accurate because of sensor resolution, so it may be returning similar large values regardless of the exact position. Less accuracy means neighboring cells share very similar scans and the filter can't differentiate well between them. Plus, the drift meant that the TOF sensor distance varied based on the part of the scan it was in. 
+
+![Location 3 map](../Images/loc3_map.png)
+
+### Location 4: (5ft, 3ft, 0) --> (1.524 m, 0.91 m)
+
+![Location 4 belief](../Images/loc4_belief.png)
+
+The location it thinks it's at is (1.524, 0.610, 110). The x coordinate is perfect but the y coordinate it off by 1 foot. This might be a result of my car drifting a bit. I did attempt to mitigate it with tape on the wheels and ran it multiple times but each time I would end up getting slightly off results in different directions.
+
+This is in the top-right corner near walls so it makes sense that x is accurate. But there's a fairly large open corridor along the y-direction and in general the walls are less distinctive. If the walls run parallel to the x-axis look similar from y=0.91m and y=0.61m, the filter can't distinguish them so it struggles getting an accurate y reading. Again, the small amount of drifting just compounds this issue. 
 
 
-Here are my videos of it running:
+![Location 4 map](../Images/loc4_map.png)
 
-[![Run 1:](https://youtu.be/Dtsjgl5BLGw)](https://youtu.be/Dtsjgl5BLGw)
+### Overall Takeaways
 
-[![Run 2:](https://youtu.be/L5N_h0FFInc)](https://youtu.be/L5N_h0FFInc)
+The more walls and obstacles surrounding the robot from different angles, the more distinctive the readings and the more confident the sensor model is in identifying the correct cell. Open space can be a problem for localization because the lower quality sensor data for further measurements and the lack of distinctive environmental features to identify means that  many neighboring cells look identical to the filter. This makes it harder to accurately pinpoint location.
 
-[![Run 3:](https://youtu.be/l9EDUjT5MvU)](https://youtu.be/l9EDUjT5MvU)
-
-[![Run 4:](https://youtu.be/gNyw11PmsVo)](https://youtu.be/gNyw11PmsVo)
-
+As for angle, because that was an issue for basically all the readings: Across all four locations, the heading estimate was consistently inaccurate. I think this is because of the 20 degree steps because the filter can only ever report the nearest grid cell heading, which may be 20° or more from the true value. In addition, I can't be certain I put the robot at exactly 0 degrees by hand so if I'm starting off the scan with an offset, it would throw off all the angle readings. However, these issues don't affect position in space (x,y) because the angle of the robot is an independent variable relative to the physical position and position just requires the TOF scan, not necessarily caring about the exact starting orientation. 

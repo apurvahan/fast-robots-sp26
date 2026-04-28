@@ -283,7 +283,7 @@ The data values shown in the code are from running the trials (in a separate scr
 ![World Map](../Images/Lab9/world_map.png) 
 
 Hallway:
-![Hallway](../Images/Lab9/hallway.png) 
+![Hallway](../Images/Lab9/hallway.jpg) 
 
 
 Video of it spinning
