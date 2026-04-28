@@ -1,8 +1,8 @@
 ---
 layout: default
-title: "Lab 10"
-permalink: /LAB-10/
-description: "Writeup for Lab 10."
+title: "Lab 11"
+permalink: /LAB-11/
+description: "Writeup for Lab 11."
 ---
 
 <script>
