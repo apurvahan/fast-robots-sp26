@@ -83,42 +83,42 @@ The function returns sensor_ranges and sensor_bearings as column arrays of shape
 
 ### Location 1: (-3ft, -2ft, 0) --> (-0.91 m, -0.6096 m, 0 deg)
 
-![Location 1 belief](../Images/loc1_belief.png)
+![Location 1 belief](../Images/Lab11/loc1_belief.png)
 
 The location it thinks it's at is (-0.914 m, -0.610, -170). The x, y coordinates are almost perfect but the angle is off. 
 
 This makes sense to me because this location is in the bottom-left corner region of the map which helps with accuracy because being near two walls means the readings are quite distinctive. The TOF sensor will get more readings from walls in close range at specific angles which helps pinpoints the cell. Corners are very useful for localization.
 
-![Location 1 map](../Images/loc1_map.png)
+![Location 1 map](../Images/Lab11/loc1_map.png)
 
 ### Location 2: (0ft, 3ft, 0) --> (0, 0.91 m)
 
-![Location 2 belief](../Images/loc2_belief.png)
+![Location 2 belief](../Images/Lab11/loc2_belief.png)
 
 The location it thinks it's at is (0, 0.914, 90). The x,y coordinates are almost perfect but the angle is off. This is near the top wall and small box obstacle so for a similar reason as location 1, the combination of multiple distinctive walls helps identify the location with more confidence.
 
-![Location 2 map](../Images/loc2_map.png)
+![Location 2 map](../Images/Lab11/loc2_map.png)
 
 ### Location 3: (5ft, -3ft, 0) --> (1.524 m, -0.91 m)
 
-![Location 3 belief](../Images/loc3_belief.png)
+![Location 3 belief](../Images/Lab11/loc3_belief.png)
 
 The location it thinks it's at is (1.829, -1.219, 90). This is fairly off from the actual coordinates but I noticed that for this one my car drifted a lot. I did run it twice and got similarly off results so it might be the ray casting uncertainty I mentioned earlier. And, the angle is still off on this one. 
 
 This location is in the bottom-right area which has relatively few nearby walls. Several of the 18 readings will be reading far distance values, which tend to be less accurate because of sensor resolution, so it may be returning similar large values regardless of the exact position. Less accuracy means neighboring cells share very similar scans and the filter can't differentiate well between them. Plus, the drift meant that the TOF sensor distance varied based on the part of the scan it was in. 
 
-![Location 3 map](../Images/loc3_map.png)
+![Location 3 map](../Images/Lab11/loc3_map.png)
 
 ### Location 4: (5ft, 3ft, 0) --> (1.524 m, 0.91 m)
 
-![Location 4 belief](../Images/loc4_belief.png)
+![Location 4 belief](../Images/Lab11/loc4_belief.png)
 
 The location it thinks it's at is (1.524, 0.610, 110). The x coordinate is perfect but the y coordinate it off by 1 foot. This might be a result of my car drifting a bit. I did attempt to mitigate it with tape on the wheels and ran it multiple times but each time I would end up getting slightly off results in different directions.
 
 This is in the top-right corner near walls so it makes sense that x is accurate. But there's a fairly large open corridor along the y-direction and in general the walls are less distinctive. If the walls run parallel to the x-axis look similar from y=0.91m and y=0.61m, the filter can't distinguish them so it struggles getting an accurate y reading. Again, the small amount of drifting just compounds this issue. 
 
 
-![Location 4 map](../Images/loc4_map.png)
+![Location 4 map](../Images/Lab11/loc4_map.png)
 
 ### Overall Takeaways
 
