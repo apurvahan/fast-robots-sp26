@@ -24,21 +24,11 @@ window.MathJax = {
 
 I started out this lab by following the math for the equations of motion for an inverted pendulum discussed in class (photo above from Professor Helbling's lecture slides). With some algebra we arrive at the final equations:
 
-\[
-(M + m)\ddot{x} + ml\ddot{\theta}\cos(\theta) - ml\dot{\theta}^2\sin(\theta) = F - \delta\dot{x}
-\]
+$$
+\Delta = ml^2\left(M + m\left(1 - \cos^2(\theta)\right)\right)
+$$
 
-\[
-ml^2\ddot{\theta} + ml\ddot{x}\cos(\theta) + mgl\sin(\theta) = 0
-\]
-
-Which can then be put into state space form: 
-
-\[
-\Delta = ml^2\left(M + m(1 - \cos^2(\theta))\right)
-\]
-
-\[
+$$
 \frac{d}{dt}
 \begin{bmatrix}
 x \\
@@ -50,32 +40,40 @@ x \\
 \begin{bmatrix}
 \dot{x} \\
 
-\frac{(ml^2)\left(F + ml\dot{\theta}^2\sin(\theta) - \delta\dot{x} + mg\cos(\theta)\sin(\theta)\right)}
-{\Delta} \\
+\frac{
+ml^2\left(
+F + ml\dot{\theta}^2\sin(\theta)
+- \delta\dot{x}
++ mg\cos(\theta)\sin(\theta)
+\right)
+}{\Delta} \\
 
 \dot{\theta} \\
 
 \frac{
-(-ml\cos(\theta))\left(F + ml\dot{\theta}^2\sin(\theta) - \delta\dot{x}\right)
-- (M+m)mgl\sin(\theta)
-}
-{\Delta}
+-ml\cos(\theta)\left(
+F + ml\dot{\theta}^2\sin(\theta)
+- \delta\dot{x}
+\right)
+-
+(M+m)mgl\sin(\theta)
+}{\Delta}
 \end{bmatrix}
-\]
+$$
 
-\[
+$$
 \text{Linearize about:}
-\qquad
-x = \text{free},
 \quad
-\dot{x} = 0,
+x=\text{free},
 \quad
-\theta \in \{0,\pi\},
+\dot{x}=0,
 \quad
-\dot{\theta} = 0
-\]
+\theta\in\{0,\pi\},
+\quad
+\dot{\theta}=0
+$$
 
-\[
+$$
 \frac{d}{dt}
 \begin{bmatrix}
 x \\
@@ -91,9 +89,10 @@ x \\
 
 0 & 0 & 0 & 1 \\
 
-0 & -\frac{\mathrm{up}\,\delta}{ML}
-& \frac{\mathrm{up}(m+M)g}{ML}
-& 0
+0 &
+-\frac{\mathrm{up}\,\delta}{ML} &
+\frac{\mathrm{up}(m+M)g}{ML} &
+0
 \end{bmatrix}
 \begin{bmatrix}
 x \\
@@ -109,12 +108,14 @@ x \\
 \frac{\mathrm{up}}{ML}
 \end{bmatrix}
 F
-\]
+$$
 
-\[
-\text{where } \mathrm{up} = 1 \text{ at } \theta=\pi
-\text{ and } \mathrm{up} = -1 \text{ at } \theta=0
-\]
+$$
+\text{where }
+\mathrm{up}=1 \text{ at } \theta=\pi,
+\qquad
+\mathrm{up}=-1 \text{ at } \theta=0
+$$
 
 ## Localization code
 
