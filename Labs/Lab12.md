@@ -274,6 +274,7 @@ My first step was to make it so that the robot could stand on its own (to ensure
 
 Some things I had to consider
 - The DMP is slow so waiting for new data cannot keep the robot steady enough. Relying on stale data doesn't work when the car is tipping because it won't respond in time. My way around this was to use raw gyro data and combine that with the DMP produced roll values. The alpha threshhold acts as a filter to prevent gyro drift from affecting the data too much and control the ratio at which I use the two sources of data. So, even if DMP data is stale, the controller will still act using fresh data from the gyroscope. 
+- The DMP sampling rate is set to 225 Hz: "success &= (myICM.setDMPODRrate(DMP_ODR_Reg_Quat6, 0) == ICM_20948_Stat_Ok);". This is the max rate.
 - I still need to have a dead zone but I brought it significantly down from what I usually have it at (like 60 or so) to account for the gain I pass in via the python code. I still constrain the u value between -255 and 255 because that's max PWM. 
 - This lab switches to radians. The EOM assumes rad/s so it was just easier to standardize it. 
 
@@ -373,3 +374,98 @@ void handleFlipToBalance() {
 ### Graph
 
 ![Dynamic stability graph](../Images/Lab12/dynamic_stability.png)
+
+### Video
+
+![Video of it working](../Images/Lab12/success1_pendulum.gif)
+
+You can see it translates a lot. I will fix that if I have time but I do need to turn this in on time. Any video updates made after midnight are mostly for fun. 
+
+
+# Other Code
+
+## Graphing Code
+
+```python
+fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(10, 6), sharex=True)
+    
+ax1.plot(time_vals, angle_vals, label='yaw (rad)', color='blue')
+ax1.axhline(y=np.pi/2, color='red', linestyle='--')
+ax1.set_ylabel('Pitch (rad)')
+ax1.legend()
+ax1.grid(True)
+
+delta_yaw = np.pi/2 - np.array(angle_vals)
+
+ax3.plot(time_vals, delta_yaw, label='delta yaw', color='purple')
+ax3.axhline(y=0, color='black', linestyle='--')
+ax3.set_ylabel('Error from Correct Angle (rad)')
+ax3.set_xlabel('Time (ms)')
+ax3.legend()
+ax3.grid(True)
+    
+ax2.plot(time_vals, u_vals, label='u (PWM)', color='orange')
+ax2.axhline(y=0, color='black', linestyle='--')
+ax2.set_ylabel('Control Output (PWM)')
+ax2.set_xlabel('Time (ms)')
+ax2.legend()
+ax2.grid(True)
+   
+ax4.plot(time_vals, angle_dot_vals, label='omega (rad/s)', color='orange')
+ax4.axhline(y=0, color='black', linestyle='--')
+ax4.set_ylabel('Angular Velocity Output (rad/s)')
+ax4.set_xlabel('Time (ms)')
+ax4.legend()
+ax4.grid(True)
+  
+plt.tight_layout()
+plt.show()
+```
+
+## DMP Angles
+
+```C++
+bool check_DMP() {
+  icm_20948_DMP_data_t data;
+  myICM.readDMPdataFromFIFO(&data);
+
+  if ((myICM.status == ICM_20948_Stat_Ok) || 
+      (myICM.status == ICM_20948_Stat_FIFOMoreDataAvail)) {
+
+      if ((data.header & DMP_header_bitmap_Quat6) > 0) {
+        double q1 = ((double)data.Quat6.Data.Q1) / 1073741824.0;
+        double q2 = ((double)data.Quat6.Data.Q2) / 1073741824.0;
+        double q3 = ((double)data.Quat6.Data.Q3) / 1073741824.0;
+        double q0 = sqrt(max(0.0, 1.0 - q1*q1 - q2*q2 - q3*q3)); 
+
+        double qw = q0; 
+        double qx = q2;
+        double qy = q1;
+        double qz = -q3;
+
+        // roll (x-axis rotation)
+        double t0 = +2.0 * (qw * qx + qy * qz);
+        double t1 = +1.0 - 2.0 * (qx * qx + qy * qy);
+        roll = atan2(t0, t1);
+
+        // pitch (y-axis rotation)
+        double t2 = +2.0 * (qw * qy - qx * qz);
+        t2 = t2 > 1.0 ? 1.0 : t2;
+        t2 = t2 < -1.0 ? -1.0 : t2;
+        pitch = asin(t2);
+
+        // yaw (z-axis rotation)
+        double t3 = +2.0 * (qw * qz + qx * qy);
+        double t4 = +1.0 - 2.0 * (qy * qy + qz * qz);
+        yaw = atan2(t3, t4);
+        
+        return true;
+
+      } else {
+        return false;
+      }
+  } else {
+    return false;
+  }
+}
+```
