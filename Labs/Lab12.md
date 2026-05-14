@@ -17,10 +17,11 @@ window.MathJax = {
 
 [← Back to Home]({{ '/' | relative_url }})
 
+# Controller Setup
 
-##  Setup
+##  Math
 
-### Linearization
+### Equations of Motion
 
 ![Equation of Motion](../Images/Lab12/eom.png)
 
@@ -119,14 +120,23 @@ $$
 \mathrm{up}=-1 \text{ at } \theta=0
 $$
 
+We get the A and B vectors of the system from the above equations following the general form
 
-### LQR
+$$
+\dot{x} = Ax + Bu
+$$
+
+## LQR
+
+### LQR vs PID
 
 Since this is a nonlinear problem because it's a pendulum past 15 degrees either way, PID is harder to use because it's generally better for linear systems. The EOMs are linearized about the stable point at the top of the pendulum where theta = pi/2 so it's a linear system near that point. As a result, I decided to use LQR (linear quadratic regulator) because it's commonly used for nonlinear problems linearized about a point. 
 
+### Finding the Matrices
+
 My first step was to find the physical parameters of the system. I need the top mass, bottom mass, and length of the car. I loaded the bottom of the car (technically the front of the car the way I do the pendulum) with extra mass using a bunch of bolts and nuts so that there would be a measurable difference between M and m. I weighed both sides of the car and used a ruler to measure the length of it to find these parameters. The 'd' parameter in the formula is a friction term which I chose to ignore and set to 0 because it's a scaling factor I can deal with later. The 'up' parameter is based off of orientation of the IMU and what sign theta has so in my case I have an 'up'=1.
 
-I then created my Q matrix. Although my state space uses x and x dot, other than practicing the stunt next to a wall every time and using the TOF, there isn't really a good way to get values for those. And because the sensor data is so noisy, my reasoning was that it would be more likely to throw off the overall balance. Because the Q matrix from class already weighs them so low (because they're not super important for balance) I decided to just set them to 0 so my system is only based on theta and theta_dot. Theta_dot is the most important parameter because a change in it is the most consequential so it's weighed the heaviest in the Q matrix. The R vector represents how costly motor motion is. Initially I had it set very low but I tuned it to a value of 10 to get stable poles (more below).
+I then created my Q matrix. Although my state space uses x and x dot, other than practicing the stunt next to a wall every time and using the TOF, there isn't really a good way to get values for those. And because the sensor data is so noisy, my reasoning was that it would be more likely to throw off the overall balance. Because the Q matrix from class already weighs them so low (because they're not super important for balance, it's more to prevent it from wobbling which is such a secondary problem for me) I decided to just set them to 0 so my system is only based on theta and theta_dot. Theta_dot is the most important parameter because a change in it is the most consequential so it's weighed the heaviest in the Q matrix. The R vector represents how costly motor motion is. Initially I had it set very low but I tuned it to a value of 10 to get stable poles (more below).
 
 ```python
 M = 0.4 
@@ -190,103 +200,176 @@ $$
 u = -K*x
 $$
 
+In order to make sure that I'm building a stable system, I also get the eigenvalues for the system 
 
-## Localization code
+$$
+\dot{x} = (A - BK)x
+$$
+
+where A and B are from above, and x is the state vector. The eigenvalues of this closed loop system (A-BK) are found using the built in python function. Poles are stable if they are below 0 because that means that the system will decay to a steady state. I get all the eigenvalues of the system and check if they are appropriate poles. If all of them are stable, I know my controller is stable.
 
 ```python
-def perform_observation_loop(self, rot_vel=120):
-  """Perform the observation loop behavior on the real robot, where the robot does  
-   a 360 degree turn in place while collecting equidistant (in the angular space) sensor
-  readings, with the first sensor reading taken at the robot's current heading. 
-  The number of sensor readings depends on "observations_count"(=18) defined in world.yaml.
-        
-  Keyword arguments:
-    rot_vel -- (Optional) Angular Velocity for loop (degrees/second)
-                        Do not remove this parameter from the function definition, even if you don't use it.
-  Returns:
-    sensor_ranges   -- A column numpy array of the range values (meters)
-    sensor_bearings -- A column numpy array of the bearings at which the sensor readings were taken (degrees)
-      The bearing values are not used in the Localization module, so you may return a empty numpy array
-  """
+P = solve_continuous_are(A, B, Q, R) #the ricatti solver from the lecture slides 
+K = np.linalg.inv(R) @ B.T @ P
 
-  sensor_ranges = []
-  sensor_bearings = []
-
-  def notification_handler(uuid, byte_array):
-    "angle|distance"
-    msg = byte_array.decode()
-    angle, dist = msg.split(',')
-    sensor_bearings.append(float(angle))
-    sensor_ranges.append(float(dist) / 1000)
-
-
-  self.ble.send_command(CMD.SEND_THREE_FLOATS, "1.20|0.42|0") #id
-  asyncio.run(asyncio.sleep(5))
-
-  self.ble.start_notify(self.ble.uuid['RX_STRING'], notification_handler)
-  self.ble.send_command(CMD.TO_ORIENTATION, 0)  
-  asyncio.run(asyncio.sleep(300))
-
-  self.ble.send_command(CMD.GET_TOF, "")
-  asyncio.run(asyncio.sleep(45))
-
-  self.ble.stop_notify(self.ble.uuid['RX_STRING'])
-
-  sensor_ranges   = np.array(sensor_ranges[:18])[np.newaxis].T
-  sensor_bearings = np.array(sensor_bearings[:18])[np.newaxis].T
-    
-  return sensor_ranges, sensor_bearings
+A_cl = A - B @ K
+closed_loop_poles = np.linalg.eigvals(A_cl)
+print("\nClosed-loop poles (eigenvalues of A - B*K):")
+all_stable = True
+for p in closed_loop_poles:
+    if (p.real < 1e-10):
+        print("pole: " + str(p) + " is stable")
+    else:
+        print("pole: " + str(p) + " is unstable")
+        all_stable = False
+ 
+print("my controller is stable" if all_stable else "controller is unstable, redo Q and R")
 ```
 
-There wasn't too much for this step, a lot of it was transferring over the commands from lab 9. I did change the angle increments and the direction it turns for it to have 18 data points sampled counterclockwise. I tried doing the improper way of using "asyncio" described in the lab but honestly the delay consistently works across different trials so I'm not too worried about it. The only other thing I worried about here other than transferring over lab 9 code was just the formatting into numpy column arrays to fit the format expected by the rest of the filter. 
+### Tuning
 
-For some of the readings I did initially, I did forget to change the CCW part and the interesting thing was that my localization ran but it almost seemed like the world frame flipped axis. It would get the right x location but the negative of the y location and vice versa. 
+Getting my controller to be stable required tweaking the Q values and the R values. I found that I could let the motors be more aggressive because in this system they are the only way of creating a change in state. Letting my Q value for angular velocity be roughly 2 times that of the angle and making my R value more aggressive got me to a stable point. Below are my exactly tuning values:
 
-The function returns sensor_ranges and sensor_bearings as column arrays of shape (18, 1). The bearing values are not used by the localization module, so while they are collected and returned for completeness, only the range values feed into the update step.
+![Tuning values](../Images/Lab12/tuning_vals.png)
 
-## Update Step
+### K-matrix
 
-### Location 1: (-3ft, -2ft, 0) --> (-0.91 m, -0.6096 m, 0 deg)
+The K matrix is then send to the Arduino which then multiplies it with the current state vector corresponding to the robots physical location. A gain is added because this lab is done in radians so the raw K values into angle produce extremely low u values (because we're not working in the same units anyways, the raw is u is some force unit while the u that Arduino uses is PWM). I tweaked the gain experimentally to see what gave me large enough values that it would physically move the robot. I needed a higher gain (around 20-30) for static stability because the robot doesn't start with much initial momentum so it's hard to get the wheels moving. I needed a lower gain of around 10-15 for stability coming from a flip because the robot already had momentum going in. 
 
-![Location 1 belief](../Images/Lab11/loc1_belief.png)
+```python
+gain_vals = 12;
+K = gain_vals*K.flatten()
+def notification_handler(uuid, data):
+    msg = data.decode()
+    t, u, d, a, omega = msg.split(',')
+    time_vals.append(float(t))
+    u_vals.append(float(u))
+    dist_vals.append(float(d))
+    angle_vals.append(float(a))
+    angle_dot_vals.append(float(omega))
+    print("RX:", msg)
 
-The location it thinks it's at is (-0.914 m, -0.610, -170). The x, y coordinates are almost perfect but the angle is off. 
+ble = get_ble_controller()
+ble.connect()
+time.sleep(0.2)
+ble.start_notify(ble.uuid['RX_STRING'], notification_handler)
+ble.send_command(CMD.HARD_STOP, "")
+time.sleep(5)
+cmd_string = "|" + str(K[0]) + "|" + str(K[1]) + "|" + str(K[2]) + "|" + str(K[3]) + "|"
+ble.send_command(CMD.SEND_THREE_FLOATS, cmd_string) #handle sending over K matrix here
+ble.send_command(CMD.LQR, "|0.8|");
+time.sleep(30)
+ble.send_command(CMD.GET_DATA, "")
+time.sleep(30)
+ble.stop_notify(ble.uuid['RX_STRING'])
+```
 
-This makes sense to me because this location is in the bottom-left corner region of the map which helps with accuracy because being near two walls means the readings are quite distinctive. The TOF sensor will get more readings from walls in close range at specific angles which helps pinpoints the cell. Corners are very useful for localization.
+# Robot Motion
 
-![Location 1 map](../Images/Lab11/loc1_map.png)
+## Static Stability
 
-### Location 2: (0ft, 3ft, 0) --> (0, 0.91 m)
+### Getting it To Stand:
 
-![Location 2 belief](../Images/Lab11/loc2_belief.png)
+My first step was to make it so that the robot could stand on its own (to ensure that the robot was capable of turning off the motors at the target angle). I'm not attaching a video of it because it's a pretty boring video but this mostly checked to make sure my velocity and angle signs are correct and that the motors spin the right way when moved to one side of the other. 
 
-The location it thinks it's at is (0, 0.914, 90). The x,y coordinates are almost perfect but the angle is off. This is near the top wall and small box obstacle so for a similar reason as location 1, the combination of multiple distinctive walls helps identify the location with more confidence.
+Some things I had to consider
+- The DMP is slow so waiting for new data cannot keep the robot steady enough. Relying on stale data doesn't work when the car is tipping because it won't respond in time. My way around this was to use raw gyro data and combine that with the DMP produced roll values. The alpha threshhold acts as a filter to prevent gyro drift from affecting the data too much and control the ratio at which I use the two sources of data. So, even if DMP data is stale, the controller will still act using fresh data from the gyroscope. 
+- I still need to have a dead zone but I brought it significantly down from what I usually have it at (like 60 or so) to account for the gain I pass in via the python code. I still constrain the u value between -255 and 255 because that's max PWM. 
+- This lab switches to radians. The EOM assumes rad/s so it was just easier to standardize it. 
 
-![Location 2 map](../Images/Lab11/loc2_map.png)
+```C++
+void handleLQR() {
+  log_index = 0;
+  prev_lqr_time = millis();
+  unsigned long startTime = millis();
+  while (millis() - startTime < 15000) {
+    unsigned long now = millis();
+    float dt = (float)(now - prev_lqr_time) / 1000.0f;
+    if (dt <= 0) dt = 0.001f;
+    prev_lqr_time = now;
+    //imu reading
+    unsigned long dmp_start = millis();
+    while (!check_DMP()) {
+      if (millis() - dmp_start > 2) break;
+    }   //remove blocking so controller can respond fast
+    myICM.getAGMT();
+    theta_dot = myICM.gyrX() * PI / 180.0f; 
+    //lqr control law
+    theta = alpha * (theta + theta_dot * dt) + (1.0f - alpha) * roll;
+    float u = -(K[2]*(theta-(PI/2)) + K[3]*theta_dot);
+    const float MIN_PWM = 20.0;
+    //dead zone
+    if (abs(u) > 0 && abs(u) < MIN_PWM) {
+      u = MIN_PWM * (u > 0 ? 1.0f : -1.0f);
+    }
+    u = constrain(u, -255, 255);
+    drive(u);
+    if (log_index < MAX_SAMPLES) {
+      time_log[log_index] = millis() - startTime;
+      u_log[log_index] = u;
+      dist_log[log_index] = 0;
+      angle_log[log_index] = theta;
+      angle_dot_log[log_index] = theta_dot;
+      log_index++;
+    }
+  }
+  stop();
+}
+```
 
-### Location 3: (5ft, -3ft, 0) --> (1.524 m, -0.91 m)
+### Graphs
 
-![Location 3 belief](../Images/Lab11/loc3_belief.png)
+![Static stability graph](../Images/Lab12/static_stability.png)
 
-The location it thinks it's at is (1.829, -1.219, 90). This is fairly off from the actual coordinates but I noticed that for this one my car drifted a lot. I did run it twice and got similarly off results so it might be the ray casting uncertainty I mentioned earlier. And, the angle is still off on this one. 
+## Flip 
 
-This location is in the bottom-right area which has relatively few nearby walls. Several of the 18 readings will be reading far distance values, which tend to be less accurate because of sensor resolution, so it may be returning similar large values regardless of the exact position. Less accuracy means neighboring cells share very similar scans and the filter can't differentiate well between them. Plus, the drift meant that the TOF sensor distance varied based on the part of the scan it was in. 
+The problem with getting it to stand from its stable point is that either it just kinda stands there without doing anything. If i start it in an unstable initial condition (I hold it in place at an angle), the minute I let go the controller doesn't have time to respond and the robot ends up falling down. Instead, I decided to flip into the pendulum position so that I could always start my robot from a fixed position and I could still show the pendulum control (shout out to Aravind Ramaswami, Nita Kattimani, and Anunth Ramaswami for the original idea).
 
-![Location 3 map](../Images/Lab11/loc3_map.png)
+To get it into the flip position I have it perform the same steps that it did for the stunt lab:
 
-### Location 4: (5ft, 3ft, 0) --> (1.524 m, 0.91 m)
+- Initial dmp_start section is just so the DMP gets warmed up and doesn't throw weird data
+- The flip was just having it go full speed forward for a bit, active stopping (PWM 1) for a very short while, and then fully reversing for a short while. I tuned the delay after the reverse so that I still catch the robot while it's in the air. 
+- The flip timeout checks if the flip is succesful by checking the IMU. If it is we proceed to the LQR method from above. If it isn't we stop because the car has hit the ground and getting into the pendulum is impossible. 
+- It stops the car in midair so that the LQR commanded u value doesn't immediately jerk the car and destabilize it. 
 
-![Location 4 belief](../Images/Lab11/loc4_belief.png)
+```python
+void handleFlipToBalance() {
+  log_index = 0;
+  unsigned long dmp_start = millis();
+  while (millis() - dmp_start < 500) {
+    check_DMP();
+    delay(5);
+  }
+  while (!check_DMP());
+  theta = roll;
+  drive(255);
+  delay(400); 
 
-The location it thinks it's at is (1.524, 0.610, 110). The x coordinate is perfect but the y coordinate it off by 1 foot. This might be a result of my car drifting a bit. I did attempt to mitigate it with tape on the wheels and ran it multiple times but each time I would end up getting slightly off results in different directions.
+  analogWrite(LM_F, 1); analogWrite(LM_B, 0);
+  analogWrite(RM_F, 1); analogWrite(RM_B, 0);
+  delay(3); 
+  analogWrite(LM_F, 0);
+  analogWrite(RM_F, 0);
+  analogWrite(LM_B, 250);
+  analogWrite(RM_B, 250);
+  delay(40);
+  unsigned long flipTimeout = millis();
+  while (millis() - flipTimeout < 1500) {
+    unsigned long dmp_start = millis();
+    while (!check_DMP()) {
+      if (millis() - dmp_start > 5) break;
+    }
+    myICM.getAGMT();
+    theta_dot = myICM.gyrX() * PI / 180.0f;
+    theta = 0.95f * (theta + theta_dot * 0.005f) + 0.05f * roll;
 
-This is in the top-right corner near walls so it makes sense that x is accurate. But there's a fairly large open corridor along the y-direction and in general the walls are less distinctive. If the walls run parallel to the x-axis look similar from y=0.91m and y=0.61m, the filter can't distinguish them so it struggles getting an accurate y reading. Again, the small amount of drifting just compounds this issue. 
+    //switch to LQR when its close
+    if (abs(theta - PI/2) < 0.25 && abs(theta_dot) < 2.0) break;
+  }
+  stop();
+}
+```
 
+### Graph
 
-![Location 4 map](../Images/Lab11/loc4_map.png)
-
-### Overall Takeaways
-
-The more walls and obstacles surrounding the robot from different angles, the more distinctive the readings and the more confident the sensor model is in identifying the correct cell. Open space can be a problem for localization because the lower quality sensor data for further measurements and the lack of distinctive environmental features to identify means that  many neighboring cells look identical to the filter. This makes it harder to accurately pinpoint location.
-
-As for angle, because that was an issue for basically all the readings: Across all four locations, the heading estimate was consistently inaccurate. I think this is because of the 20 degree steps because the filter can only ever report the nearest grid cell heading, which may be 20° or more from the true value. In addition, I can't be certain I put the robot at exactly 0 degrees by hand so if I'm starting off the scan with an offset, it would throw off all the angle readings. However, these issues don't affect position in space (x,y) because the angle of the robot is an independent variable relative to the physical position and position just requires the TOF scan, not necessarily caring about the exact starting orientation. 
+![Dynamic stability graph](../Images/Lab12/dynamic_stability.png)
