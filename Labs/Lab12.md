@@ -20,6 +20,8 @@ window.MathJax = {
 
 ##  Setup
 
+### Linearization
+
 ![Equation of Motion](../Images/Lab12/eom.png)
 
 I started out this lab by following the math for the equations of motion for an inverted pendulum discussed in class (photo above from Professor Helbling's lecture slides). With some algebra we arrive at the final equations:
@@ -116,6 +118,78 @@ $$
 \qquad
 \mathrm{up}=-1 \text{ at } \theta=0
 $$
+
+
+### LQR
+
+Since this is a nonlinear problem because it's a pendulum past 15 degrees either way, PID is harder to use because it's generally better for linear systems. The EOMs are linearized about the stable point at the top of the pendulum where theta = pi/2 so it's a linear system near that point. As a result, I decided to use LQR (linear quadratic regulator) because it's commonly used for nonlinear problems linearized about a point. 
+
+My first step was to find the physical parameters of the system. I need the top mass, bottom mass, and length of the car. I loaded the bottom of the car (technically the front of the car the way I do the pendulum) with extra mass using a bunch of bolts and nuts so that there would be a measurable difference between M and m. I weighed both sides of the car and used a ruler to measure the length of it to find these parameters. The 'd' parameter in the formula is a friction term which I chose to ignore and set to 0 because it's a scaling factor I can deal with later. The 'up' parameter is based off of orientation of the IMU and what sign theta has so in my case I have an 'up'=1.
+
+I then created my Q matrix. Although my state space uses x and x dot, other than practicing the stunt next to a wall every time and using the TOF, there isn't really a good way to get values for those. And because the sensor data is so noisy, my reasoning was that it would be more likely to throw off the overall balance. Because the Q matrix from class already weighs them so low (because they're not super important for balance) I decided to just set them to 0 so my system is only based on theta and theta_dot. Theta_dot is the most important parameter because a change in it is the most consequential so it's weighed the heaviest in the Q matrix. The R vector represents how costly motor motion is. Initially I had it set very low but I tuned it to a value of 10 to get stable poles (more below).
+
+```python
+M = 0.4 
+m = 0.25
+l = 0.12
+g = 9.81
+d = 0 #delta viscous friction, can ignore for now im pretty sure
+up = 1 #if theta is pi, 1; if theta is 0, -1
+
+A = np.array([
+    [0,1,0,0],
+    [0,-d/M,m*g/M,0],
+    [0,0,0,1],
+    [0,-up*d/(M*l),up*(m+M)*g/(M*l),0]
+])
+
+B = np.array([
+    [0],
+    [1/M],
+    [0],
+    [up/(M*l)]
+])
+
+print("A matrix:")
+print(np.round(A, 4))
+print("B matrix:")
+print(np.round(B, 4))
+
+
+open_loop_poles = np.linalg.eigvals(A)
+print("eigenvalues of A:")
+for p in open_loop_poles:
+    if (p.real > 0):
+        print("pole: " + str(p) + " is unstable")
+    else:
+        print("pole: " + str(p) + " is stable")
+
+#serves as an initial check for stability of the system 
+
+Q = np.diag([
+    0,       #x position, not super important here
+    0,       #x dot, we don't want it to speed around but also less concerned than angular velocity 
+    20,      #theta, pretty important
+    35      #theta_dot, most important bc we want to get static stability
+])
+
+R = np.array([[10]]) #motors allowed to be more aggressive
+```
+
+### Poles
+
+I then used the built in Ricatti equation solver in python to get the P vector in the below equation to solve for K, the control matrix. 
+
+$$
+K = R^{-1}\left(B^{\top}P(t) + N^{\top}\right)
+$$
+
+This can then be put into the control law. The values of K only need to be calculated once so the math doesn't need to be computationally efficient. The u values only change because the state vector values do. 
+
+$$
+u = -K*x
+$$
+
 
 ## Localization code
 
